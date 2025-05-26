@@ -428,11 +428,14 @@ impl Game {
             return "".to_string();
         }
         let parity = if self.history.len() % 2 == 0 { 1 } else { 0 };
-        let index: usize = self.history.len() - 2*offset + parity;
+        let index: i32 = self.history.len() as i32 - 2*offset as i32 - parity;
+        if index - 1 < 0 {
+            return "".to_string();
+        }
 
-        let s1 = if index - 1 < self.history.len() { self.history[index - 1].notation() } else { "".to_string() };
-        let s2 = if index < self.history.len() { self.history[index].notation() } else { "".to_string() };
-        return format!(" {:>3}. {:<10} {:<10}", self.turn_count - offset as u32, s1, s2);
+        let s1 = if index - 1 < self.history.len() as i32 { self.history[index as usize - 1].notation() } else { "".to_string() };
+        let s2 = if index < self.history.len() as i32 { self.history[index as usize].notation() } else { "".to_string() };
+        return format!(" {:>3}. {:<10} {:<10}", self.turn_count - offset as u32 - parity as u32, s1, s2);
     }
 
     fn print_title(&self) {
