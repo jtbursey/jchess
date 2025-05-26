@@ -117,8 +117,6 @@ fn rook_castle_file(long_castle: bool) -> usize {
     return if long_castle { 0 } else { 7 };
 }
 
-// Going to need a map from PieceKind to the unicode to print
-
 #[derive(Copy, Clone, PartialEq, Eq)]
 enum Color {
     White,
@@ -217,19 +215,6 @@ impl Piece {
         return s;
     }
 
-    fn debug_string(self) -> String {
-        match self
-        {
-            Piece{kind: PieceKind::None, color: _, has_moved: _, highlight: _} => "None".to_string(),
-            Piece{kind: PieceKind::Pawn, color: _, has_moved: _, highlight: _} => "Pawn".to_string(),
-            Piece{kind: PieceKind::Bishop, color: _, has_moved: _, highlight: _} => "Bishop".to_string(),
-            Piece{kind: PieceKind::Knight, color: _, has_moved: _, highlight: _} => "Knight".to_string(),
-            Piece{kind: PieceKind::Rook, color: _, has_moved: _, highlight: _} => "Rook".to_string(),
-            Piece{kind: PieceKind::Queen, color: _, has_moved: _, highlight: _} => "Queen".to_string(),
-            Piece{kind: PieceKind::King, color: _, has_moved: _, highlight: _} => "King".to_string(),
-        }
-    }
-
     fn to_letter(self) -> String {
         match self
         {
@@ -288,7 +273,7 @@ impl Move {
         let t = if self.takes { "takes on" } else { "to" };
         let p = if self.promotion != PieceKind::None { format!("promotes to {}", self.promotion.debug_string()) } else { "".to_string() };
         let c = if self.check { "with check" } else if self.checkmate { "with checkmate" } else { "" };
-        return format!("{} {}{} {} {} {}", self.piece.debug_string(), o, t, tuple_to_square(self.dest), p, c);
+        return format!("{} {}{} {} {} {}", self.piece.kind.debug_string(), o, t, tuple_to_square(self.dest), p, c);
     }
 
     pub fn notation(self) -> String {
@@ -491,11 +476,17 @@ impl Game {
     fn print_checkmate(&self) {
         self.print_active_board();
 
-        println!("");
+        println!("{: >7}\u{250c}{:\u{2500}>12}\u{2510}", "", "");
+        println!("{: >7}\u{2502} {} Wins \u{2502}", "", if self.to_move == Color::White { "Black" } else { "White" });
+        println!("{: >7}\u{2514}{:\u{2500}>12}\u{2518}", "", "");
+    }
 
-        println!("{: >3}\u{250c}{:\u{2500}>30}\u{2510}", "", "");
-        println!("{: >3}\u{2502}{:<30}\u{2502}", "", "White Wins");
-        println!("{: >3}\u{2514}{:\u{2500}>30}\u{2518}", "", "");
+    fn print_stalemate(&self) {
+        self.print_active_board();
+
+        println!("{: >7}\u{250c}{:\u{2500}>12}\u{2510}", "", "");
+        println!("{: >7}\u{2502}    Draw    \u{2502}", "");
+        println!("{: >7}\u{2514}{:\u{2500}>12}\u{2518}", "", "");
 
     }
 
@@ -514,7 +505,7 @@ impl Game {
             PrintMode::Title => self.print_title(),
             PrintMode::Game => self.print_game(),
             PrintMode::Checkmate => self.print_checkmate(),
-            _ => self.print_game(),
+            PrintMode::Stalemate => self.print_stalemate(),
         };
     }
 

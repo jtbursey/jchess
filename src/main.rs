@@ -9,7 +9,7 @@ fn read_line() -> String {
     String::from(input.trim())
 }
 
-fn game_loop(mut game: &chess::Game) {
+fn game_loop(mut game: chess::Game) {
     let mut history: Vec<chess::Game> = Vec::new();
 
     game.start_game();
@@ -39,6 +39,8 @@ fn game_loop(mut game: &chess::Game) {
         {
             game.set_concede();
             quit = true;
+            game.clear_hl();
+            game.fancy_print();
             continue;
         }
 
@@ -70,7 +72,6 @@ fn game_loop(mut game: &chess::Game) {
 
         game.next_turn();
     }
-    println!("");
 }
 
 fn main() {
@@ -81,5 +82,6 @@ fn main() {
     game.fancy_print();
     let _ = read_line();
     game_loop(game);
+    let _ = read_line();
 }
 
