@@ -312,6 +312,7 @@ pub struct Game {
     white_cap: Vec<Piece>,
     black_cap: Vec<Piece>,
     error: String,
+    orientation: Color,
     print_mode: PrintMode,
 }
 
@@ -322,7 +323,7 @@ impl Game {
     // ================
 
     pub fn new() -> Self {
-        Self { board: Board{0:[[Piece{kind: PieceKind::None, color: Color::White, has_moved: false, highlight: 0}; 8]; 8]}, to_move: Color::White , turn_count: 1, history: Vec::new(), white_cap: Vec::new(), black_cap: Vec::new(), error: String::new(), print_mode: PrintMode::Title }
+        Self { board: Board{0:[[Piece{kind: PieceKind::None, color: Color::White, has_moved: false, highlight: 0}; 8]; 8]}, to_move: Color::White , turn_count: 1, history: Vec::new(), white_cap: Vec::new(), black_cap: Vec::new(), error: String::new(), orientation: Color::White, print_mode: PrintMode::Title }
     }
 
     pub fn default_board(&mut self) {
@@ -378,6 +379,10 @@ impl Game {
 
     pub fn clear_notes(&mut self) {
         self.error = String::new();
+    }
+
+    pub fn flip_board(&mut self) {
+        self.orientation = if self.orientation == Color::White { Color::Black } else { Color::White };
     }
 
     fn cap_string(&self, c: Color) -> String {
@@ -439,30 +444,46 @@ impl Game {
     }
 
     fn print_title(&self) {
-        println!("{: >4}8 {}{: >2}{}", "", self.print_rank(7), "", TITLE1);
-        println!("{: >4}7 {}{: >2}{}", "", self.print_rank(6), "", TITLE2);
-        println!("{: >4}6 {}{: >2}{}", "", self.print_rank(5), "", TITLE3);
-        println!("{: >4}5 {}{: >2}{}", "", self.print_rank(4), "", TITLE4);
-        println!("{: >4}4 {}{: >2}{}", "", self.print_rank(3), "", TITLE5);
-        println!("{: >4}3 {}{: >2}", "", self.print_rank(2), "",);
-        println!("{: >4}2 {}{: >13}Press Enter", "", self.print_rank(1), "");
-        println!("{: >4}1 {}{: >2}", "", self.print_rank(0), "");
-        println!("{: >4}  a b c d e f g h", "");
+        let mut r = if self.orientation == Color::White { 7 } else { 0 };
+        println!("{: >5} {}{: >2}{}", r + 1, self.print_rank(r), "", TITLE1);
+        r = if self.orientation == Color::White { 6 } else { 1 };
+        println!("{: >5} {}{: >2}{}", r + 1, self.print_rank(r), "", TITLE2);
+        r = if self.orientation == Color::White { 5 } else { 2 };
+        println!("{: >5} {}{: >2}{}", r + 1, self.print_rank(r), "", TITLE3);
+        r = if self.orientation == Color::White { 4 } else { 3 };
+        println!("{: >5} {}{: >2}{}", r + 1, self.print_rank(r), "", TITLE4);
+        r = if self.orientation == Color::White { 3 } else { 4 };
+        println!("{: >5} {}{: >2}{}", r + 1, self.print_rank(r), "", TITLE5);
+        r = if self.orientation == Color::White { 2 } else { 5 };
+        println!("{: >5} {}{: >2}", r + 1, self.print_rank(r), "",);
+        r = if self.orientation == Color::White { 1 } else { 6 };
+        println!("{: >5} {}{: >13}Press Enter", r + 1, self.print_rank(r), "");
+        r = if self.orientation == Color::White { 0 } else { 7 };
+        println!("{: >5} {}{: >2}", r + 1, self.print_rank(r), "");
+        println!("{: >5} a b c d e f g h", "");
         println!("");
         println!("");
         println!("");
     }
 
     fn print_active_board(&self) {
-        println!("{: >4}8 {}{: >3}\u{250c}{:\u{2500}>30}\u{2510}", "", self.print_rank(7), "", "");
-        println!("{: >4}7 {}{: >3}\u{2502}{:<30}\u{2502}", "", self.print_rank(6), "", self.print_notation_history(0));
-        println!("{: >4}6 {}{: >3}\u{2502}{:<30}\u{2502}", "", self.print_rank(5), "", self.print_notation_history(1));
-        println!("{: >4}5 {}{: >3}\u{2502}{:<30}\u{2502}", "", self.print_rank(4), "", self.print_notation_history(2));
-        println!("{: >4}4 {}{: >3}\u{2502}{:<30}\u{2502}", "", self.print_rank(3), "", self.print_notation_history(3));
-        println!("{: >4}3 {}{: >3}\u{2514}{:\u{2500}>30}\u{2518}", "", self.print_rank(2), "", "");
-        println!("{: >4}2 {}{: >3}\x1b[47m{}\x1b[0m", "", self.print_rank(1), "", self.cap_string(Color::Black));
-        println!("{: >4}1 {}{: >3}\x1b[47m{}\x1b[0m", "", self.print_rank(0), "", self.cap_string(Color::White));
-        println!("{: >4}  a b c d e f g h", "");
+        let mut r = if self.orientation == Color::White { 7 } else { 0 };
+        println!("{: >5} {}{: >3}\u{250c}{:\u{2500}>30}\u{2510}", r + 1, self.print_rank(r), "", "");
+        r = if self.orientation == Color::White { 6 } else { 1 };
+        println!("{: >5} {}{: >3}\u{2502}{:<30}\u{2502}", r + 1, self.print_rank(r), "", self.print_notation_history(0));
+        r = if self.orientation == Color::White { 5 } else { 2 };
+        println!("{: >5} {}{: >3}\u{2502}{:<30}\u{2502}", r + 1, self.print_rank(r), "", self.print_notation_history(1));
+        r = if self.orientation == Color::White { 4 } else { 3 };
+        println!("{: >5} {}{: >3}\u{2502}{:<30}\u{2502}", r + 1, self.print_rank(r), "", self.print_notation_history(2));
+        r = if self.orientation == Color::White { 3 } else { 4 };
+        println!("{: >5} {}{: >3}\u{2502}{:<30}\u{2502}", r + 1, self.print_rank(r), "", self.print_notation_history(3));
+        r = if self.orientation == Color::White { 2 } else { 5 };
+        println!("{: >5} {}{: >3}\u{2514}{:\u{2500}>30}\u{2518}", r + 1, self.print_rank(r), "", "");
+        r = if self.orientation == Color::White { 1 } else { 6 };
+        println!("{: >5} {}{: >3}\x1b[47m{}\x1b[0m", r + 1, self.print_rank(r), "", self.cap_string(Color::Black));
+        r = if self.orientation == Color::White { 0 } else { 7 };
+        println!("{: >5} {}{: >3}\x1b[47m{}\x1b[0m", r + 1, self.print_rank(r), "", self.cap_string(Color::White));
+        println!("{: >5} a b c d e f g h", "");
     }
 
     fn print_game(&self) {

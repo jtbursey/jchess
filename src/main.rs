@@ -44,6 +44,12 @@ fn game_loop(mut game: chess::Game) {
             continue;
         }
 
+        if input == "flip"
+        {
+            game.flip_board();
+            continue;
+        }
+
         let mut m = match game.parse_notation(input) {
             Ok(m) => m,
             Err(s) => {game.set_error(s); continue},
@@ -75,7 +81,6 @@ fn game_loop(mut game: chess::Game) {
 }
 
 fn main() {
-    //let mut input = String::new();
     let mut game = chess::Game::new();
 
     game.default_board();
