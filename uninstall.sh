@@ -2,10 +2,11 @@
 
 target=$(which jchess)
 
-if [[ $target == "" ]]; then
+if [[ ${target} == "" ]]; then
     echo "Could not find jchess in \$PATH"
     exit
 fi
 
-rm $target
+echo "Deleting ${target}"
+rm ${target}
 
