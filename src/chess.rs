@@ -419,12 +419,18 @@ impl Game {
 
     fn print_rank(&self, r: usize) -> String {
         let mut rank = String::new();
-        for f in 0..8
+        let mut f: i32 = if self.orientation == Color::White { 0 } else { 7 };
+        while f >= 0 && f <= 7
         {
-           rank.push_str(&self.board_square(f, r));
+           rank.push_str(&self.board_square(f as usize, r));
+           f = if self.orientation == Color::White { f + 1 } else { f - 1 };
         }
         rank.push_str(RESET);
         rank
+    }
+
+    fn print_rank_label(&self) -> String {
+        return if self.orientation == Color::White { "a b c d e f g h ".to_string() } else { "h g f e d c b a ".to_string() };
     }
 
     fn print_notation_history(&self, offset: usize) -> String {
@@ -460,7 +466,7 @@ impl Game {
         println!("{: >5} {}{: >13}Press Enter", r + 1, self.print_rank(r), "");
         r = if self.orientation == Color::White { 0 } else { 7 };
         println!("{: >5} {}{: >2}", r + 1, self.print_rank(r), "");
-        println!("{: >5} a b c d e f g h", "");
+        println!("{: >5} {}", "", self.print_rank_label());
         println!("");
         println!("");
         println!("");
@@ -483,7 +489,7 @@ impl Game {
         println!("{: >5} {}{: >3}\x1b[47m{}\x1b[0m", r + 1, self.print_rank(r), "", self.cap_string(Color::Black));
         r = if self.orientation == Color::White { 0 } else { 7 };
         println!("{: >5} {}{: >3}\x1b[47m{}\x1b[0m", r + 1, self.print_rank(r), "", self.cap_string(Color::White));
-        println!("{: >5} a b c d e f g h", "");
+        println!("{: >5} {}", "", self.print_rank_label());
     }
 
     fn print_game(&self) {
