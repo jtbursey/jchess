@@ -100,6 +100,17 @@ impl Game {
         };
     }
 
+    pub fn player(&self, color: Color) -> &Box<dyn Player> {
+        return match color {
+            Color::White => &self.player_white,
+            Color::Black => &self.player_black,
+        };
+    }
+
+    pub fn current_color(&self) -> Color {
+        return self.to_move;
+    }
+
     pub fn current_is_human(&self) -> bool {
         return true;
     }
@@ -294,202 +305,6 @@ impl Game {
                 self.board.0[f][r].highlight = 0;
             }
         }
-    }
-
-    // ================
-    // Notation Parsing
-    // ================
-
-    fn validate_notation(&self, input: &String) -> Option<String> {
-        if !input.is_ascii()
-        {
-            return Some("Non-ascii input".to_string());
-        }
-        if input.len() < 2
-        {
-            return Some("Input is too short".to_string());
-        }
-        if input.len() > 9
-        {
-            return Some("Input is too long".to_string());
-        }
-        return None;
-    }
-
-    // Assumes a valid 2 length square notation and returns the tuple coords for it.
-    fn square_to_tuple(&self, input: &String) -> (File, Rank) {
-        let rank = input[1..].parse::<u32>().unwrap();
-        let file = input.chars().nth(0).unwrap();
-        return (File::new(file), Rank::new(rank));
-    }
-
-    fn partial_square_to_tuple(&self, input: &String) -> (File, Rank) {
-        if input.len() == 1
-        {
-            if File(input.chars().nth(0)).is_valid()
-            {
-                return (File::new(input.chars().nth(0).unwrap()), Rank(None));
-            }
-            else if Rank::from(input.chars().nth(0)).is_valid()
-            {
-                return (File(None), Rank::new(input.parse::<u32>().unwrap()))
-            }
-        }
-        else if input.len() == 2 && File(input.chars().nth(0)).is_valid()
-                && Rank::from(input.chars().nth(1)).is_valid()
-        {
-            return self.square_to_tuple(input);
-        }
-
-        return (File(None), Rank(None));
-    }
-
-    fn find_square_notation_ending(&self, input: &String) -> usize {
-        let mut count: usize = 0;
-
-        if input.len() >= 2
-        {
-            let file = input.chars().nth(input.len() - 2);
-            if File(file).is_valid()
-            {
-                count = count + 1;
-            }
-        }
-        
-        if input.len() >= 1
-        {
-            let rank = input.chars().nth(input.len() - 1); // or rank
-            if Rank::from(rank).is_valid() || (count == 0 && File(rank).is_valid())
-            {
-                count = count + 1;
-            }
-        }
-        
-        return count;
-    }
-
-    fn validate_square(&self, input: &String) -> bool {
-        if input.len() != 2
-        {
-            return false;
-        }
-
-        if self.find_square_notation_ending(input) != 2
-        {
-            return false;
-        }
-
-        let (file, rank) = self.square_to_tuple(input);
-        if !rank.is_valid()
-        {
-            return false;
-        }
-
-        if !file.is_valid()
-        {
-            return false;
-        }
-
-        return true;
-    }
-
-    // expects a string of length 0 or 1 and returns the pieceKind
-    fn notation_find_piece(&self, input: &String) -> Piece {
-        if input.is_empty()
-        {
-            return Piece::make(PieceKind::Pawn, self.to_move, false, 0);
-        }
-
-        match input.chars().nth(0).unwrap()
-        {
-            'P' => Piece::make(PieceKind::Pawn, self.to_move, false, 0),
-            'B' => Piece::make(PieceKind::Bishop, self.to_move, false, 0),
-            'N' => Piece::make(PieceKind::Knight, self.to_move, false, 0),
-            'R' => Piece::make(PieceKind::Rook, self.to_move, false, 0),
-            'Q' => Piece::make(PieceKind::Queen, self.to_move, false, 0),
-            'K' => Piece::make(PieceKind::King, self.to_move, false, 0),
-            _ => Piece::make(PieceKind::None, self.to_move, false, 0),
-        }
-    }
-
-    fn handle_promotion(&self, input: &mut String, m: &mut Move) {
-        if input.len() <= 2
-        { // This length is kind of rough. You can't have a valid promotion and destination on only 2 chars
-            return;
-        }
-
-        let promote: String = input[input.len() - 2..].to_string();
-        if promote.chars().nth(0).unwrap() != '='
-        {
-            return;
-        }
-
-        let piece = promote[1..].to_string();
-        m.promotion = self.notation_find_piece(&piece).kind;
-        let _ = input.split_off(input.len() - 2);
-    }
-
-    pub fn parse_notation(&self, mut input: String) -> Result<Move, String> {
-        let mut m = Move::new();
-
-        if let Some(s) = self.validate_notation(&input)
-        {
-            return Err(s);
-        }
-        
-        m.checkmate = input.ends_with("#");
-        if m.checkmate
-        {
-            _ = input.split_off(input.len() - 1);
-        }
-
-        m.check = input.ends_with("+");
-        if m.check
-        {
-            _ = input.split_off(input.len() - 1);
-        }
-
-        if m.check && m.checkmate
-        {
-            return Err("Both check and checkmate".to_string());
-        }
-
-        // Handle castles after check/mate for those really weird cases.
-        if input == "O-O"
-        {
-            m.castle = true;
-            m.piece = Piece{kind: PieceKind::King, color: self.to_move, has_moved: false, highlight: 0};
-            return Ok(m);
-        }
-        else if input == "O-O-O"
-        {
-            m.long_castle = true;
-            m.piece = Piece{kind: PieceKind::King, color: self.to_move, has_moved: false, highlight: 0};
-            return Ok(m);
-        }
-
-        self.handle_promotion(&mut input, &mut m);
-
-        let dest = input.split_off(input.len() - 2);
-        if !self.validate_square(&dest)
-        {
-            return Err("Invalid square".to_string());
-        }
-        m.dest = self.square_to_tuple(&dest);
-
-        m.takes = input.ends_with("x");
-        if m.takes
-        {
-            _ = input.split_off(input.len() - 1);
-        }
-
-        let square_size = self.find_square_notation_ending(&input);
-        let origin = input.split_off(input.len() - square_size);
-        m.origin = self.partial_square_to_tuple(&origin);
-
-        m.piece = self.notation_find_piece(&input);
-
-        return Ok(m);
     }
 
     // ================

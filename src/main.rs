@@ -1,10 +1,10 @@
-use std::io;
-
 mod chess;
+mod input;
 mod bots;
 
 use chess::game::Game;
-use chess::r#move::Move;
+use chess::r#move::{MetaMove, Move};
+use input::*;
 
 fn main() {
     let mut game = Game::new();
@@ -42,36 +42,22 @@ fn game_loop(mut game: Game) {
             continue;
         }
 
-        if game.current_is_human()
+        m = match game.current_player().get_move(&game) {
+            Ok(mo) => mo,
+            Err(s) => {game.set_error(s); continue},
+        };
+        if m.meta == MetaMove::Quit || m.meta == MetaMove::Concede
         {
-            let input = read_line();
-            if input == "quit" || input == "concede" || input == "exit"
-            {
-                game.set_concede();
-                quit = true;
-                game.clear_hl();
-                game.fancy_print();
-                continue;
-            }
-
-            if input == "flip"
-            {
-                game.flip_board();
-                continue;
-            }
-
-            m = match game.parse_notation(input) {
-                Ok(m) => m,
-                Err(s) => {game.set_error(s); continue},
-            };
+            game.set_concede();
+            quit = true;
+            game.clear_hl();
+            game.fancy_print();
+            continue;
         }
-        else if game.current_is_bot()
+        else if m.meta == MetaMove::Flip
         {
-            m = Move::new()
-        }
-        else
-        {
-            panic!("Unknown player type!")
+            game.flip_board();
+                continue;
         }
 
         if let Some(s) = game.disambiguate(&mut m)
@@ -98,11 +84,3 @@ fn game_loop(mut game: Game) {
         game.next_turn();
     }
 }
-
-fn read_line() -> String {
-    let mut input = String::new();
-    input.clear();
-    io::stdin().read_line(&mut input).expect("Failed to read input");
-    String::from(input.trim())
-}
-

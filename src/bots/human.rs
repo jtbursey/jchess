@@ -1,6 +1,7 @@
 use crate::chess::player::*;
 use crate::chess::game::Game;
-use crate::chess::r#move::Move;
+use crate::chess::r#move::*;
+use crate::input::*;
 
 #[derive(Clone)]
 pub struct Human();
@@ -12,7 +13,16 @@ impl Human {
 }
 
 impl Player for Human {
-    fn get_move(&self, _game: &Game) -> Move {
-        return Move::new()
+    fn get_move(&self, game: &Game) -> Result<Move, String> {
+        let input = read_line();
+
+        return match parse_notation(input, game.current_color()) {
+            Ok(m) => Ok(m),
+            Err(s) => Err(s),
+        };
+    }
+
+    fn is_human(&self) -> bool {
+        return true;
     }
 }

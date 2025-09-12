@@ -6,7 +6,7 @@ use crate::chess::r#move::Move;
 pub struct Bogobot();
 
 impl Player for Bogobot {
-    fn get_move(&self, _game: &Game) -> Move {
-        return Move::new()
+    fn get_move(&self, _game: &Game) -> Result<Move, String> {
+        return Ok(Move::new());
     }
 }
