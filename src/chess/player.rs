@@ -2,9 +2,7 @@ use crate::chess::game::Game;
 use crate::chess::r#move::Move;
 
 pub trait Player: PlayerClone {
-    fn get_move(&self, _game: &Game) -> Result<Move, String> {
-        return Ok(Move::new())
-    }
+    fn get_move(&self, _game: &Game) -> Result<Move, String>;
 
     fn is_human(&self) -> bool {
         return false;

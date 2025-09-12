@@ -1,6 +1,5 @@
 use std::process::Command;
-use std::io;
-use std::io::Write;
+use std::io::{Write, stdout};
 
 use crate::chess::color::Color;
 use crate::chess::piece::*;
@@ -111,93 +110,34 @@ impl Game {
         return self.to_move;
     }
 
-    pub fn current_is_human(&self) -> bool {
-        return true;
-    }
-
-    pub fn current_is_bot(&self) -> bool {
-        return false;
+    pub fn set_player(&mut self, player: Box<dyn Player>, color: Color) {
+        match color {
+            Color::White => self.player_white = player,
+            Color::Black => self.player_black = player,
+        };
     }
 
     // ================
     // UI Code
     // ================
 
-    pub fn set_error(&mut self, e: String) {
-        self.error = format!("Error: {}", e);
-        return;
-    }
+    pub fn fancy_print(&self) {
+        let prelines = 2;
 
-    pub fn clear_notes(&mut self) {
-        self.error = String::new();
-    }
+        let mut clear = Command::new("clear");
+        let _ = clear.status();
 
-    pub fn flip_board(&mut self) {
-        self.orientation = if self.orientation == Color::White { Color::Black } else { Color::White };
-    }
-
-    fn cap_string(&self, c: Color) -> String {
-        let mut s = String::new();
-        if c == Color::White
+        for _i in 0..prelines
+        {   
+            println!();
+        }
+        match self.print_mode
         {
-            for i in 0..self.white_cap.len()
-            {
-                s = format!("{}{}", s, self.white_cap[i].get_string());
-            }
-        }
-        else
-        {
-            for i in 0..self.black_cap.len()
-            {
-                s = format!("{}{}", s, self.black_cap[i].get_string());
-            }
-        }
-
-        return s;
-    }
-
-    fn board_square(&self, f: usize, r: usize) -> String {
-        let mut space = String::new();
-        if (f + r) % 2 == 0 {
-            space.push_str(DARK);
-        } else {
-            space.push_str(LIGHT);
-        }
-
-        space.push_str(&self.board.0[f][r].get_string());
-        space
-    }
-
-    fn print_rank(&self, r: usize) -> String {
-        let mut rank = String::new();
-        let mut f: i32 = if self.orientation == Color::White { 0 } else { 7 };
-        while f >= 0 && f <= 7
-        {
-           rank.push_str(&self.board_square(f as usize, r));
-           f = if self.orientation == Color::White { f + 1 } else { f - 1 };
-        }
-        rank.push_str(RESET);
-        rank
-    }
-
-    fn print_rank_label(&self) -> String {
-        return if self.orientation == Color::White { "a b c d e f g h ".to_string() } else { "h g f e d c b a ".to_string() };
-    }
-
-    fn print_notation_history(&self, offset: usize) -> String {
-        if self.history.len() < 2*offset
-        {
-            return "".to_string();
-        }
-        let parity = if self.history.len() % 2 == 0 { 1 } else { 0 };
-        let index: i32 = self.history.len() as i32 - 2*offset as i32 - parity;
-        if index - 1 < 0 {
-            return "".to_string();
-        }
-
-        let s1 = if index - 1 < self.history.len() as i32 { self.history[index as usize - 1].notation() } else { "".to_string() };
-        let s2 = if index < self.history.len() as i32 { self.history[index as usize].notation() } else { "".to_string() };
-        return format!(" {:>3}. {:<10} {:<10}", self.turn_count - offset as u32 - parity as u32, s1, s2);
+            PrintMode::Title => self.print_title(),
+            PrintMode::Game => self.print_game(),
+            PrintMode::Checkmate => self.print_checkmate(),
+            PrintMode::Stalemate => self.print_stalemate(),
+        };
     }
 
     fn print_title(&self) {
@@ -223,6 +163,34 @@ impl Game {
         println!("");
     }
 
+    fn print_game(&self) {
+        self.print_active_board();
+
+        println!("  \x1b[41m{}\x1b[0m", self.error);
+
+        // Print color based on turn
+        println!("{: >6}\u{250c}\u{2500} {} to move {:\u{2500}>12}\u{2510}", "", self.to_move.to_string(), "");
+        print!("{: >6}\u{2514} ", "");
+        let _ = stdout().flush().unwrap();
+    }
+
+    fn print_checkmate(&self) {
+        self.print_active_board();
+
+        println!("{: >7}\u{250c}{:\u{2500}>12}\u{2510}", "", "");
+        println!("{: >7}\u{2502} {} Wins \u{2502}", "", if self.to_move == Color::White { "Black" } else { "White" });
+        println!("{: >7}\u{2514}{:\u{2500}>12}\u{2518}", "", "");
+    }
+
+    fn print_stalemate(&self) {
+        self.print_active_board();
+
+        println!("{: >7}\u{250c}{:\u{2500}>12}\u{2510}", "", "");
+        println!("{: >7}\u{2502}    Draw    \u{2502}", "");
+        println!("{: >7}\u{2514}{:\u{2500}>12}\u{2518}", "", "");
+
+    }
+
     fn print_active_board(&self) {
         let mut r = if self.orientation == Color::White { 7 } else { 0 };
         println!("{: >5} {}{: >3}\u{250c}{:\u{2500}>30}\u{2510}", r + 1, self.print_rank(r), "", "");
@@ -243,51 +211,81 @@ impl Game {
         println!("{: >5} {}", "", self.print_rank_label());
     }
 
-    fn print_game(&self) {
-        self.print_active_board();
-
-        println!("  \x1b[41m{}\x1b[0m", self.error);
-
-        // Print color based on turn
-        println!("{: >6}\u{250c}\u{2500} {} to move {:\u{2500}>12}\u{2510}", "", self.to_move.to_string(), "");
-        print!("{: >6}\u{2514} ", "");
-        let _ = io::stdout().flush().unwrap();
-    }
-
-    fn print_checkmate(&self) {
-        self.print_active_board();
-
-        println!("{: >7}\u{250c}{:\u{2500}>12}\u{2510}", "", "");
-        println!("{: >7}\u{2502} {} Wins \u{2502}", "", if self.to_move == Color::White { "Black" } else { "White" });
-        println!("{: >7}\u{2514}{:\u{2500}>12}\u{2518}", "", "");
-    }
-
-    fn print_stalemate(&self) {
-        self.print_active_board();
-
-        println!("{: >7}\u{250c}{:\u{2500}>12}\u{2510}", "", "");
-        println!("{: >7}\u{2502}    Draw    \u{2502}", "");
-        println!("{: >7}\u{2514}{:\u{2500}>12}\u{2518}", "", "");
-
-    }
-
-    pub fn fancy_print(&self) {
-        let prelines = 2;
-
-        let mut clear = Command::new("clear");
-        let _ = clear.status();
-
-        for _i in 0..prelines
-        {   
-            println!();
-        }
-        match self.print_mode
+    fn print_rank(&self, r: usize) -> String {
+        let mut rank = String::new();
+        let mut f: i32 = if self.orientation == Color::White { 0 } else { 7 };
+        while f >= 0 && f <= 7
         {
-            PrintMode::Title => self.print_title(),
-            PrintMode::Game => self.print_game(),
-            PrintMode::Checkmate => self.print_checkmate(),
-            PrintMode::Stalemate => self.print_stalemate(),
-        };
+           rank.push_str(&self.board_square(f as usize, r));
+           f = if self.orientation == Color::White { f + 1 } else { f - 1 };
+        }
+        rank.push_str(RESET);
+        rank
+    }
+
+    fn print_notation_history(&self, offset: usize) -> String {
+        if self.history.len() < 2*offset
+        {
+            return "".to_string();
+        }
+        let parity = if self.history.len() % 2 == 0 { 1 } else { 0 };
+        let index: i32 = self.history.len() as i32 - 2*offset as i32 - parity;
+        if index - 1 < 0 {
+            return "".to_string();
+        }
+
+        let s1 = if index - 1 < self.history.len() as i32 { self.history[index as usize - 1].notation() } else { "".to_string() };
+        let s2 = if index < self.history.len() as i32 { self.history[index as usize].notation() } else { "".to_string() };
+        return format!(" {:>3}. {:<10} {:<10}", self.turn_count - offset as u32 - parity as u32, s1, s2);
+    }
+
+    fn cap_string(&self, c: Color) -> String {
+        let mut s = String::new();
+        if c == Color::White
+        {
+            for i in 0..self.white_cap.len()
+            {
+                s = format!("{}{}", s, self.white_cap[i].get_string());
+            }
+        }
+        else
+        {
+            for i in 0..self.black_cap.len()
+            {
+                s = format!("{}{}", s, self.black_cap[i].get_string());
+            }
+        }
+
+        return s;
+    }
+
+    fn print_rank_label(&self) -> String {
+        return if self.orientation == Color::White { "a b c d e f g h ".to_string() } else { "h g f e d c b a ".to_string() };
+    }
+
+    fn board_square(&self, f: usize, r: usize) -> String {
+        let mut space = String::new();
+        if (f + r) % 2 == 0 {
+            space.push_str(DARK);
+        } else {
+            space.push_str(LIGHT);
+        }
+
+        space.push_str(&self.board.0[f][r].get_string());
+        space
+    }
+
+    pub fn set_error(&mut self, e: String) {
+        self.error = format!("Error: {}", e);
+        return;
+    }
+
+    pub fn clear_notes(&mut self) {
+        self.error = String::new();
+    }
+
+    pub fn flip_board(&mut self) {
+        self.orientation = if self.orientation == Color::White { Color::Black } else { Color::White };
     }
 
     pub fn hl_king(&mut self) {

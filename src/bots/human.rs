@@ -3,6 +3,8 @@ use crate::chess::game::Game;
 use crate::chess::r#move::*;
 use crate::input::*;
 
+// Here for human input
+
 #[derive(Clone)]
 pub struct Human();
 

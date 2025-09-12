@@ -57,7 +57,7 @@ fn game_loop(mut game: Game) {
         else if m.meta == MetaMove::Flip
         {
             game.flip_board();
-                continue;
+            continue;
         }
 
         if let Some(s) = game.disambiguate(&mut m)
