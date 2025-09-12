@@ -1,0 +1,12 @@
+use crate::chess::player::*;
+use crate::chess::game::Game;
+use crate::chess::r#move::Move;
+
+#[derive(Clone)]
+pub struct Bogobot();
+
+impl Player for Bogobot {
+    fn get_move(&self, _game: &Game) -> Move {
+        return Move::new()
+    }
+}

@@ -1,16 +1,24 @@
 use std::io;
 
 mod chess;
+mod bots;
 
-fn read_line() -> String {
-    let mut input = String::new();
-    input.clear();
-    io::stdin().read_line(&mut input).expect("Failed to read input");
-    String::from(input.trim())
+use chess::game::Game;
+use chess::r#move::Move;
+
+fn main() {
+    let mut game = Game::new();
+
+    game.default_board();
+    game.fancy_print();
+    let _ = read_line();
+    game_loop(game);
+    let _ = read_line();
 }
 
-fn game_loop(mut game: chess::Game) {
-    let mut history: Vec<chess::Game> = Vec::new();
+fn game_loop(mut game: Game) {
+    let mut history: Vec<Game> = Vec::new();
+    let mut m : Move;
 
     game.start_game();
     let mut quit : bool = false;
@@ -34,26 +42,37 @@ fn game_loop(mut game: chess::Game) {
             continue;
         }
 
-        let input = read_line();
-        if input == "quit" || input == "concede"
+        if game.current_is_human()
         {
-            game.set_concede();
-            quit = true;
-            game.clear_hl();
-            game.fancy_print();
-            continue;
-        }
+            let input = read_line();
+            if input == "quit" || input == "concede" || input == "exit"
+            {
+                game.set_concede();
+                quit = true;
+                game.clear_hl();
+                game.fancy_print();
+                continue;
+            }
 
-        if input == "flip"
+            if input == "flip"
+            {
+                game.flip_board();
+                continue;
+            }
+
+            m = match game.parse_notation(input) {
+                Ok(m) => m,
+                Err(s) => {game.set_error(s); continue},
+            };
+        }
+        else if game.current_is_bot()
         {
-            game.flip_board();
-            continue;
+            m = Move::new()
         }
-
-        let mut m = match game.parse_notation(input) {
-            Ok(m) => m,
-            Err(s) => {game.set_error(s); continue},
-        };
+        else
+        {
+            panic!("Unknown player type!")
+        }
 
         if let Some(s) = game.disambiguate(&mut m)
         {
@@ -80,13 +99,10 @@ fn game_loop(mut game: chess::Game) {
     }
 }
 
-fn main() {
-    let mut game = chess::Game::new();
-
-    game.default_board();
-    game.fancy_print();
-    let _ = read_line();
-    game_loop(game);
-    let _ = read_line();
+fn read_line() -> String {
+    let mut input = String::new();
+    input.clear();
+    io::stdin().read_line(&mut input).expect("Failed to read input");
+    String::from(input.trim())
 }
 

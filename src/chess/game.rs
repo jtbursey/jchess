@@ -2,295 +2,14 @@ use std::process::Command;
 use std::io;
 use std::io::Write;
 
-const TITLE1: &str = "     _  ____ _";
-const TITLE2: &str = "    | |/ ___| |__   ___  ___ ___";
-const TITLE3: &str = " _  | | |   | '_ \\ / _ \\/ __/ __|";
-const TITLE4: &str = "| |_| | |___| | | |  __/\\__ \\__ \\";
-const TITLE5: &str = " \\___/ \\____|_| |_|\\___||___/___/";
+use crate::chess::color::Color;
+use crate::chess::piece::*;
+use crate::chess::player::*;
+use crate::chess::r#move::*;
+use crate::chess::strings::*;
+use crate::chess::rankfile::*;
 
-const LIGHT: &str = "\x1b[48;2;255;193;132m";
-const DARK: &str = "\x1b[48;2;110;75;41m";
-const HIGHLIGHT1: &str = "\x1b[48;2;200;170;0m";
-const HIGHLIGHT2: &str = "\x1b[48;2;200;0;0m";
-const RESET: &str = "\x1b[0m";
-
-const NONE: &str = "  ";
-const WKING: &str = "\x1b[30m\u{2654} ";
-const BKING: &str = "\x1b[30m\u{265a} ";
-const WQUEEN: &str = "\x1b[30m\u{2655} ";
-const BQUEEN: &str = "\x1b[30m\u{265b} ";
-const WROOK: &str = "\x1b[30m\u{2656} ";
-const BROOK: &str = "\x1b[30m\u{265c} ";
-const WBISHOP: &str = "\x1b[30m\u{2657} ";
-const BBISHOP: &str = "\x1b[30m\u{265d} ";
-const WKNIGHT: &str = "\x1b[30m\u{2658} ";
-const BKNIGHT: &str = "\x1b[30m\u{265e} ";
-const WPAWN: &str = "\x1b[30m\u{2659} ";
-const BPAWN: &str = "\x1b[30m\u{265f} ";
-
-#[derive(Copy, Clone, Debug, PartialEq)]
-struct Rank(Option<u32>);
-
-impl Rank {
-    fn new(r: u32) -> Self {
-        if r <= 8 && r > 0 { Rank(Some(r)) } else { Rank(None) }
-    }
-
-    fn from_index(i: usize) -> Self {
-        if i <= 7 { Rank(Some(i as u32 + 1)) } else { Rank(None) }
-    }
-
-    fn is_valid(self) -> bool {
-        if let Some(r) = self.0
-        {
-            return r <= 8 && r > 0;
-        }
-        return false;
-    }
-
-    fn index(self) -> Option<usize> {
-        if let Some(i) = self.0 { Some(i as usize - 1) } else { None }
-    }
-
-    fn to_string(self) -> String {
-        if let Some(r) = self.0 { r.to_string() } else { "".to_string() }
-    }
-}
-
-impl From<Option<char>> for Rank {
-    fn from(r: Option<char>) -> Rank {
-        if let Some(c) = r 
-        {
-            let n = c as u32 - '0' as u32;
-            if n <= 8 && n > 0
-            {
-                return Rank(Some(n));
-            }
-        }
-        return Rank(None);
-    }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq)]
-struct File(Option<char>);
-
-impl File {
-    fn new(f: char) -> Self {
-        if f >= 'a' && f <= 'h' { File(Some(f)) } else { File(None) }
-    }
-
-    fn from_index(i: usize) -> Self {
-        if i <= 7 { File(Some(('a' as u8 + i as u8) as char)) } else { File(None) }
-    }
-
-    fn is_valid(self) -> bool {
-        if let Some(f) = self.0
-        {
-            return f >= 'a' && f <= 'h';
-        }
-        return false;
-    }
-
-    fn index(self) -> Option<usize> {
-        if let Some(f) = self.0 { Some(f as usize - 'a' as usize) } else { None }
-    }
-
-    fn to_string(self) -> String {
-        if let Some(f) = self.0 { f.to_string() } else { "".to_string() }
-    }
-}
-
-fn tuple_to_square(tuple: (File, Rank)) -> String {
-    let (file, rank) = tuple;
-    return format!("{}{}", file.to_string(), rank.to_string());
-}
-
-fn back_rank_index(c: Color) -> usize {
-    return if c == Color::White { 0 } else { 7 };
-}
-
-fn promotion_rank_index(c: Color) -> usize {
-    return if c == Color::White { 7 } else { 0 };
-}
-
-fn rook_castle_file(long_castle: bool) -> usize {
-    return if long_castle { 0 } else { 7 };
-}
-
-#[derive(Copy, Clone, PartialEq, Eq)]
-enum Color {
-    White,
-    Black,
-}
-
-impl Color {
-    fn to_string(self) -> String {
-        match self
-        {
-            Color::White => "White".to_string(),
-            Color::Black => "Black".to_string(),
-        }
-    }
-}
-
-#[derive(Copy, Clone, PartialEq)]
-enum PieceKind {
-    None,
-    Pawn,
-    Knight,
-    Bishop,
-    Rook,
-    Queen,
-    King,
-}
-
-impl PieceKind {
-    fn debug_string(self) -> String {
-        match self
-        {
-            PieceKind::None => "None".to_string(),
-            PieceKind::Pawn => "Pawn".to_string(),
-            PieceKind::Bishop => "Bishop".to_string(),
-            PieceKind::Knight => "Knight".to_string(),
-            PieceKind::Rook => "Rook".to_string(),
-            PieceKind::Queen => "Queen".to_string(),
-            PieceKind::King => "King".to_string(),
-        }
-    }
-
-    fn to_letter(self) -> String {
-        match self
-        {
-            PieceKind::None => "".to_string(),
-            PieceKind::Pawn => "".to_string(),
-            PieceKind::Bishop => "B".to_string(),
-            PieceKind::Knight => "N".to_string(),
-            PieceKind::Rook => "R".to_string(),
-            PieceKind::Queen => "Q".to_string(),
-            PieceKind::King => "K".to_string(),
-        }
-    }
-}
-
-#[derive(Copy, Clone)]
-struct Piece {
-    kind: PieceKind,
-    color: Color,
-    has_moved: bool,
-    highlight: u8,
-}
-
-impl Piece {
-    fn make(kind: PieceKind, color: Color, has_moved: bool, highlight: u8) -> Self {
-        return Piece{kind: kind, color: color, has_moved: has_moved, highlight: highlight}
-    }
-
-    fn get_string(self) -> String {
-        let mut s = String::new();
-        if self.highlight > 0
-        {
-            s.push_str(match self.highlight
-            {
-                1 => HIGHLIGHT1,
-                2 => HIGHLIGHT2,
-                _ => "",
-            });
-        }
-        s.push_str(match self
-        {
-            Piece{kind: PieceKind::None, color: _, has_moved: _, highlight: _} => NONE,
-            Piece{kind: PieceKind::Pawn, color: Color::White, has_moved: _, highlight: _} => WPAWN,
-            Piece{kind: PieceKind::Pawn, color: Color::Black, has_moved: _, highlight: _} => BPAWN,
-            Piece{kind: PieceKind::Bishop, color: Color::White, has_moved: _, highlight: _} => WBISHOP,
-            Piece{kind: PieceKind::Bishop, color: Color::Black, has_moved: _, highlight: _} => BBISHOP,
-            Piece{kind: PieceKind::Knight, color: Color::White, has_moved: _, highlight: _} => WKNIGHT,
-            Piece{kind: PieceKind::Knight, color: Color::Black, has_moved: _, highlight: _} => BKNIGHT,
-            Piece{kind: PieceKind::Rook, color: Color::White, has_moved: _, highlight: _} => WROOK,
-            Piece{kind: PieceKind::Rook, color: Color::Black, has_moved: _, highlight: _} => BROOK,
-            Piece{kind: PieceKind::Queen, color: Color::White, has_moved: _, highlight: _} => WQUEEN,
-            Piece{kind: PieceKind::Queen, color: Color::Black, has_moved: _, highlight: _} => BQUEEN,
-            Piece{kind: PieceKind::King, color: Color::White, has_moved: _, highlight: _} => WKING,
-            Piece{kind: PieceKind::King, color: Color::Black, has_moved: _, highlight: _} => BKING,
-        });
-        return s;
-    }
-
-    fn to_letter(self) -> String {
-        match self
-        {
-            Piece{kind: PieceKind::None, color: _, has_moved: _, highlight: _} => "".to_string(),
-            Piece{kind: PieceKind::Pawn, color: _, has_moved: _, highlight: _} => "".to_string(),
-            Piece{kind: PieceKind::Bishop, color: _, has_moved: _, highlight: _} => "B".to_string(),
-            Piece{kind: PieceKind::Knight, color: _, has_moved: _, highlight: _} => "N".to_string(),
-            Piece{kind: PieceKind::Rook, color: _, has_moved: _, highlight: _} => "R".to_string(),
-            Piece{kind: PieceKind::Queen, color: _, has_moved: _, highlight: _} => "Q".to_string(),
-            Piece{kind: PieceKind::King, color: _, has_moved: _, highlight: _} => "K".to_string(),
-        }
-    }
-
-    fn matches(self, other: Piece) -> bool {
-        return self.kind == other.kind && self.color == other.color;
-    }
-}
-
-#[derive(Copy, Clone)]
-pub struct Move {
-    dest: (File, Rank),
-    origin: (File, Rank),
-    piece: Piece,
-    takes: bool,
-    check: bool,
-    checkmate: bool,
-    castle: bool,
-    long_castle: bool,
-    pawn_double: bool,
-    en_passant: Option<(File, Rank)>,
-    promotion: PieceKind,
-}
-
-impl Move {
-    pub fn new() -> Self {
-        Self { dest: (File(None), Rank(None)), origin: (File(None), Rank(None)), piece: Piece{kind: PieceKind::None, color: Color::White, has_moved: false, highlight: 0},
-                takes: false, check: false, checkmate: false, castle: false, long_castle: false, pawn_double: false, en_passant: None, promotion:PieceKind::None }
-    }
-
-    // For use in checking whether a piece can attack a specific square
-    fn basic(p: Piece, o: (File, Rank), d: (File, Rank)) -> Self {
-        Self { dest: d, origin: o, piece: p,
-                takes: false, check: false, checkmate: false, castle: false, long_castle: false, pawn_double: false, en_passant: None, promotion:PieceKind::None }
-    }
-
-    pub fn debug(self) -> String {
-        if self.castle
-        {
-            return "Castles".to_string();
-        }
-        else if self.long_castle
-        {
-            return "Long Castles".to_string();
-        }
-        let o = if tuple_to_square(self.origin).len() > 0 { format!("on {} ", tuple_to_square(self.origin)) } else { "".to_string() };
-        let t = if self.takes { "takes on" } else { "to" };
-        let p = if self.promotion != PieceKind::None { format!("promotes to {}", self.promotion.debug_string()) } else { "".to_string() };
-        let c = if self.check { "with check" } else if self.checkmate { "with checkmate" } else { "" };
-        return format!("{} {}{} {} {} {}", self.piece.kind.debug_string(), o, t, tuple_to_square(self.dest), p, c);
-    }
-
-    pub fn notation(self) -> String {
-        if self.castle
-        {
-            return "O-O".to_string();
-        }
-        else if self.long_castle
-        {
-            return "O-O-O".to_string();
-        }
-        let t = if self.takes { "x" } else { "" };
-        let p = if self.promotion != PieceKind::None { format!("={}", self.promotion.to_letter()) } else { "".to_string() };
-        let c = if self.checkmate { "#" } else if self.check { "+" } else { "" };
-        return format!("{}{}{}{}{}{}", self.piece.to_letter(), tuple_to_square(self.origin), t, tuple_to_square(self.dest), p, c);
-    }
-}
+use crate::bots::human::Human;
 
 #[derive(Copy, Clone)]
 pub struct Board([[Piece; 8]; 8]);
@@ -307,6 +26,8 @@ enum PrintMode {
 pub struct Game {
     board: Board, // board coords are in the order (file, rank)
     to_move: Color,
+    player_white: Box<dyn Player>,
+    player_black: Box<dyn Player>,
     turn_count: u32,
     history: Vec<Move>,
     white_cap: Vec<Piece>,
@@ -323,7 +44,7 @@ impl Game {
     // ================
 
     pub fn new() -> Self {
-        Self { board: Board{0:[[Piece{kind: PieceKind::None, color: Color::White, has_moved: false, highlight: 0}; 8]; 8]}, to_move: Color::White , turn_count: 1, history: Vec::new(), white_cap: Vec::new(), black_cap: Vec::new(), error: String::new(), orientation: Color::White, print_mode: PrintMode::Title }
+        Self { board: Board{0:[[Piece{kind: PieceKind::None, color: Color::White, has_moved: false, highlight: 0}; 8]; 8]}, to_move: Color::White, player_white: Box::new(Human::new()), player_black: Box::new(Human::new()), turn_count: 1, history: Vec::new(), white_cap: Vec::new(), black_cap: Vec::new(), error: String::new(), orientation: Color::White, print_mode: PrintMode::Title }
     }
 
     pub fn default_board(&mut self) {
@@ -366,6 +87,25 @@ impl Game {
         self.turn_count = 1;
         self.print_mode = PrintMode::Game;
 
+    }
+
+    // ================
+    // Players
+    // ================
+
+    pub fn current_player(&self) -> &Box<dyn Player> {
+        return match self.to_move {
+            Color::White => &self.player_white,
+            Color::Black => &self.player_black,
+        };
+    }
+
+    pub fn current_is_human(&self) -> bool {
+        return true;
+    }
+
+    pub fn current_is_bot(&self) -> bool {
+        return false;
     }
 
     // ================
@@ -1077,7 +817,7 @@ impl Game {
         {
             let mut cur = Move{ dest: m.dest, origin: ambi[i], piece: self.board.0[ambi[i].0.index().unwrap()][ambi[i].1.index().unwrap()],
                             takes: m.takes, check: m.check, checkmate: m.checkmate, castle: m.castle, long_castle: m.long_castle, pawn_double: m.pawn_double,
-                            en_passant: m.en_passant, promotion: m.promotion };
+                            en_passant: m.en_passant, promotion: m.promotion, meta: MetaMove::None };
             if self.is_valid_move(&mut cur) == None
             {
                 ambi2.push(cur);
@@ -1116,7 +856,8 @@ impl Game {
                             let mut m: Move = Move{ dest: (File::from_index(f2), Rank::from_index(r2)), origin: (File::from_index(f), Rank::from_index(r)),
                                             piece: self.board.0[f][r], takes: false, check: false, checkmate: false, castle: false, long_castle: false,
                                             pawn_double: false, en_passant: None,
-                                            promotion: if self.board.0[f][r].kind == PieceKind::Pawn { PieceKind::Queen } else { PieceKind::None } };
+                                            promotion: if self.board.0[f][r].kind == PieceKind::Pawn { PieceKind::Queen } else { PieceKind::None },
+                                            meta: MetaMove::None };
                             if self.is_valid_move(&mut m) == None {
                                 let mut temp = self.clone();
                                 temp.do_move(m);
@@ -1130,6 +871,33 @@ impl Game {
             }
         }
         return false;
+    }
+
+    pub fn list_valid_moves(&self) -> Vec<Move> {
+        let mut moves : Vec<Move> = vec![];
+        for f in 0..8 {
+            for r in 0..8 {
+                if self.board.0[f][r].kind != PieceKind::None && self.board.0[f][r].color == self.to_move {
+                    for f2 in 0..8 {        // This is a lazy check of all squares.
+                        for r2 in 0..8 {    // I'm pretty sure my validation logic is efficient enough
+                            let mut m: Move = Move{ dest: (File::from_index(f2), Rank::from_index(r2)), origin: (File::from_index(f), Rank::from_index(r)),
+                                            piece: self.board.0[f][r], takes: false, check: false, checkmate: false, castle: false, long_castle: false,
+                                            pawn_double: false, en_passant: None,
+                                            promotion: if self.board.0[f][r].kind == PieceKind::Pawn { PieceKind::Queen } else { PieceKind::None },
+                                            meta: MetaMove::None };
+                            if self.is_valid_move(&mut m) == None {
+                                let mut temp = self.clone();
+                                temp.do_move(m);
+                                if !temp.is_check() {
+                                    moves.push(m);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return moves;
     }
 
     // ================
@@ -1212,4 +980,3 @@ impl Game {
         self.print_mode = PrintMode::Checkmate;
     }
 }
-
