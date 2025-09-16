@@ -50,9 +50,9 @@ struct ActionablePlayer {
 }
 
 impl ActionablePlayer {
-    fn is_human(&self) -> bool {
-        return self.player.is_human()
-    }
+    //fn is_human(&self) -> bool {
+    //    return self.player.is_human()
+    //}
 
     fn is_bot(&self) -> bool {
         return self.player.is_bot()
