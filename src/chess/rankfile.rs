@@ -13,8 +13,7 @@ impl Rank {
     }
 
     pub fn is_valid(self) -> bool {
-        if let Some(r) = self.0
-        {
+        if let Some(r) = self.0 {
             return r <= 8 && r > 0;
         }
         return false;
@@ -31,8 +30,7 @@ impl Rank {
 
 impl From<Option<char>> for Rank {
     fn from(r: Option<char>) -> Rank {
-        if let Some(c) = r 
-        {
+        if let Some(c) = r  {
             let n = c as u32 - '0' as u32;
             if n <= 8 && n > 0
             {
@@ -56,8 +54,7 @@ impl File {
     }
 
     pub fn is_valid(self) -> bool {
-        if let Some(f) = self.0
-        {
+        if let Some(f) = self.0 {
             return f >= 'a' && f <= 'h';
         }
         return false;

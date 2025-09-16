@@ -1,5 +1,5 @@
-use crate::chess::player::*;
 use crate::chess::game::Game;
+use crate::chess::player::*;
 use crate::chess::r#move::*;
 use crate::input::*;
 
@@ -15,7 +15,7 @@ impl Human {
 }
 
 impl Player for Human {
-    fn reset(&mut self)  {}
+    fn reset(&mut self) {}
 
     fn get_move(&self, game: &Game) -> Result<Move, String> {
         let input = read_line();

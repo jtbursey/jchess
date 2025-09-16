@@ -1,5 +1,5 @@
-use crate::chess::player::*;
 use crate::chess::game::Game;
+use crate::chess::player::*;
 use crate::chess::r#move::Move;
 
 use rand::Rng;

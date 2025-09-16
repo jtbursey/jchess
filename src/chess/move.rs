@@ -28,28 +28,70 @@ pub struct Move {
 
 impl Move {
     pub fn new() -> Self {
-        Self { dest: (File(None), Rank(None)), origin: (File(None), Rank(None)), piece: Piece{kind: PieceKind::None, color: Color::White, has_moved: false, highlight: 0},
-                takes: false, check: false, checkmate: false, castle: false, long_castle: false, pawn_double: false, en_passant: None, promotion:PieceKind::None, meta: MetaMove::None }
+        Self {
+            dest: (File(None), Rank(None)),
+            origin: (File(None), Rank(None)),
+            piece: Piece{
+                kind: PieceKind::None,
+                color: Color::White,
+                has_moved: false,
+                highlight: 0
+            },
+            takes: false,
+            check: false,
+            checkmate: false,
+            castle: false,
+            long_castle: false,
+            pawn_double: false,
+            en_passant: None,
+            promotion:PieceKind::None,
+            meta: MetaMove::None,
+        }
     }
 
     // For use in checking whether a piece can attack a specific square
     pub fn basic(p: Piece, o: (File, Rank), d: (File, Rank)) -> Self {
-        Self { dest: d, origin: o, piece: p,
-                takes: false, check: false, checkmate: false, castle: false, long_castle: false, pawn_double: false, en_passant: None, promotion:PieceKind::None, meta: MetaMove::None }
+        Self {
+            dest: d,
+            origin: o,
+            piece: p,
+            takes: false,
+            check: false,
+            checkmate: false,
+            castle: false,
+            long_castle: false,
+            pawn_double: false,
+            en_passant: None,
+            promotion:PieceKind::None,
+            meta: MetaMove::None }
     }
 
     pub fn new_meta(m: MetaMove) -> Self {
-        Self { dest: (File(None), Rank(None)), origin: (File(None), Rank(None)), piece: Piece{kind: PieceKind::None, color: Color::White, has_moved: false, highlight: 0},
-                takes: false, check: false, checkmate: false, castle: false, long_castle: false, pawn_double: false, en_passant: None, promotion:PieceKind::None, meta: m }
+        Self {
+            dest: (File(None), Rank(None)),
+            origin: (File(None), Rank(None)),
+            piece: Piece{
+                kind: PieceKind::None,
+                color: Color::White,
+                has_moved: false,
+                highlight: 0
+            },
+            takes: false,
+            check: false,
+            checkmate: false,
+            castle: false,
+            long_castle: false,
+            pawn_double: false,
+            en_passant: None,
+            promotion:PieceKind::None,
+            meta: m
+        }
     }
 
     pub fn debug(self) -> String {
-        if self.castle
-        {
+        if self.castle {
             return "Castles".to_string();
-        }
-        else if self.long_castle
-        {
+        } else if self.long_castle {
             return "Long Castles".to_string();
         }
         let o = if tuple_to_square(self.origin).len() > 0 { format!("on {} ", tuple_to_square(self.origin)) } else { "".to_string() };
@@ -60,12 +102,9 @@ impl Move {
     }
 
     pub fn notation(self) -> String {
-        if self.castle
-        {
+        if self.castle {
             return "O-O".to_string();
-        }
-        else if self.long_castle
-        {
+        } else if self.long_castle {
             return "O-O-O".to_string();
         }
         let t = if self.takes { "x" } else { "" };
@@ -80,16 +119,11 @@ impl Move {
 // ================
 
 fn validate_notation(input: &String) -> Option<String> {
-    if !input.is_ascii()
-    {
+    if !input.is_ascii() {
         return Some("Non-ascii input".to_string());
-    }
-    if input.len() < 2
-    {
+    } else if input.len() < 2 {
         return Some("Input is too short".to_string());
-    }
-    if input.len() > 9
-    {
+    } else if input.len() > 9 {
         return Some("Input is too long".to_string());
     }
     return None;
@@ -103,18 +137,13 @@ fn square_to_tuple(input: &String) -> (File, Rank) {
 }
 
 fn partial_square_to_tuple(input: &String) -> (File, Rank) {
-    if input.len() == 1
-    {
-        if File(input.chars().nth(0)).is_valid()
-        {
+    if input.len() == 1 {
+        if File(input.chars().nth(0)).is_valid() {
             return (File::new(input.chars().nth(0).unwrap()), Rank(None));
-        }
-        else if Rank::from(input.chars().nth(0)).is_valid()
-        {
+        } else if Rank::from(input.chars().nth(0)).is_valid() {
             return (File(None), Rank::new(input.parse::<u32>().unwrap()))
         }
-    }
-    else if input.len() == 2 && File(input.chars().nth(0)).is_valid()
+    } else if input.len() == 2 && File(input.chars().nth(0)).is_valid()
             && Rank::from(input.chars().nth(1)).is_valid()
     {
         return square_to_tuple(input);
@@ -126,20 +155,16 @@ fn partial_square_to_tuple(input: &String) -> (File, Rank) {
 fn find_square_notation_ending(input: &String) -> usize {
     let mut count: usize = 0;
 
-    if input.len() >= 2
-    {
+    if input.len() >= 2 {
         let file = input.chars().nth(input.len() - 2);
-        if File(file).is_valid()
-        {
+        if File(file).is_valid() {
             count = count + 1;
         }
     }
     
-    if input.len() >= 1
-    {
+    if input.len() >= 1 {
         let rank = input.chars().nth(input.len() - 1); // or rank
-        if Rank::from(rank).is_valid() || (count == 0 && File(rank).is_valid())
-        {
+        if Rank::from(rank).is_valid() || (count == 0 && File(rank).is_valid()) {
             count = count + 1;
         }
     }
@@ -148,24 +173,20 @@ fn find_square_notation_ending(input: &String) -> usize {
 }
 
 fn validate_square(input: &String) -> bool {
-    if input.len() != 2
-    {
+    if input.len() != 2 {
         return false;
     }
 
-    if find_square_notation_ending(input) != 2
-    {
+    if find_square_notation_ending(input) != 2 {
         return false;
     }
 
     let (file, rank) = square_to_tuple(input);
-    if !rank.is_valid()
-    {
+    if !rank.is_valid() {
         return false;
     }
 
-    if !file.is_valid()
-    {
+    if !file.is_valid() {
         return false;
     }
 
@@ -174,13 +195,11 @@ fn validate_square(input: &String) -> bool {
 
 // expects a string of length 0 or 1 and returns the pieceKind
 fn notation_find_piece(input: &String, to_move: Color) -> Piece {
-    if input.is_empty()
-    {
+    if input.is_empty() {
         return Piece::make(PieceKind::Pawn, to_move, false, 0);
     }
 
-    match input.chars().nth(0).unwrap()
-    {
+    match input.chars().nth(0).unwrap() {
         'P' => Piece::make(PieceKind::Pawn, to_move, false, 0),
         'B' => Piece::make(PieceKind::Bishop, to_move, false, 0),
         'N' => Piece::make(PieceKind::Knight, to_move, false, 0),
@@ -192,14 +211,13 @@ fn notation_find_piece(input: &String, to_move: Color) -> Piece {
 }
 
 fn handle_promotion(input: &mut String, m: &mut Move, to_move: Color) {
-    if input.len() <= 2
-    { // This length is kind of rough. You can't have a valid promotion and destination on only 2 chars
+    if input.len() <= 2 {
+        // This length is kind of rough. You can't have a valid promotion and destination on only 2 chars
         return;
     }
 
     let promote: String = input[input.len() - 2..].to_string();
-    if promote.chars().nth(0).unwrap() != '='
-    {
+    if promote.chars().nth(0).unwrap() != '=' {
         return;
     }
 
@@ -220,37 +238,31 @@ pub fn parse_notation(mut input: String, to_move: Color) -> Result<Move, String>
         return Ok(Move::new_meta(MetaMove::Flip));
     }
 
-    if let Some(s) = validate_notation(&input)
-    {
+    if let Some(s) = validate_notation(&input) {
         return Err(s);
     }
     
     m.checkmate = input.ends_with("#");
-    if m.checkmate
-    {
+    if m.checkmate {
         _ = input.split_off(input.len() - 1);
     }
 
     m.check = input.ends_with("+");
-    if m.check
-    {
+    if m.check {
         _ = input.split_off(input.len() - 1);
     }
 
-    if m.check && m.checkmate
-    {
+    if m.check && m.checkmate {
         return Err("Both check and checkmate".to_string());
     }
 
     // Handle castles after check/mate for those really weird cases.
-    if input == "O-O"
-    {
+    if input == "O-O" {
         m.castle = true;
         m.piece = Piece{kind: PieceKind::King, color: to_move, has_moved: false, highlight: 0};
         return Ok(m);
     }
-    else if input == "O-O-O"
-    {
+    else if input == "O-O-O" {
         m.long_castle = true;
         m.piece = Piece{kind: PieceKind::King, color: to_move, has_moved: false, highlight: 0};
         return Ok(m);
@@ -259,15 +271,13 @@ pub fn parse_notation(mut input: String, to_move: Color) -> Result<Move, String>
     handle_promotion(&mut input, &mut m, to_move);
 
     let dest = input.split_off(input.len() - 2);
-    if !validate_square(&dest)
-    {
+    if !validate_square(&dest) {
         return Err("Invalid square".to_string());
     }
     m.dest = square_to_tuple(&dest);
 
     m.takes = input.ends_with("x");
-    if m.takes
-    {
+    if m.takes {
         _ = input.split_off(input.len() - 1);
     }
 

@@ -14,8 +14,7 @@ pub enum PieceKind {
 
 impl PieceKind {
     pub fn debug_string(self) -> String {
-        match self
-        {
+        match self {
             PieceKind::None => "None".to_string(),
             PieceKind::Pawn => "Pawn".to_string(),
             PieceKind::Bishop => "Bishop".to_string(),
@@ -27,8 +26,7 @@ impl PieceKind {
     }
 
     pub fn to_letter(self) -> String {
-        match self
-        {
+        match self {
             PieceKind::None => "".to_string(),
             PieceKind::Pawn => "".to_string(),
             PieceKind::Bishop => "B".to_string(),
@@ -55,17 +53,14 @@ impl Piece {
 
     pub fn get_string(self) -> String {
         let mut s = String::new();
-        if self.highlight > 0
-        {
-            s.push_str(match self.highlight
-            {
+        if self.highlight > 0 {
+            s.push_str(match self.highlight {
                 1 => HIGHLIGHT1,
                 2 => HIGHLIGHT2,
                 _ => "",
             });
         }
-        s.push_str(match self
-        {
+        s.push_str(match self {
             Piece{kind: PieceKind::None, color: _, has_moved: _, highlight: _} => NONE,
             Piece{kind: PieceKind::Pawn, color: Color::White, has_moved: _, highlight: _} => WPAWN,
             Piece{kind: PieceKind::Pawn, color: Color::Black, has_moved: _, highlight: _} => BPAWN,
@@ -84,8 +79,7 @@ impl Piece {
     }
 
     pub fn to_letter(self) -> String {
-        match self
-        {
+        match self {
             Piece{kind: PieceKind::None, color: _, has_moved: _, highlight: _} => "".to_string(),
             Piece{kind: PieceKind::Pawn, color: _, has_moved: _, highlight: _} => "".to_string(),
             Piece{kind: PieceKind::Bishop, color: _, has_moved: _, highlight: _} => "B".to_string(),

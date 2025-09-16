@@ -3,12 +3,12 @@ use std::io::{Write, stdout};
 use rand::Rng;
 
 use crate::chess::color::Color;
+use crate::chess::r#move::*;
 use crate::chess::piece::*;
 use crate::chess::player::*;
-use crate::chess::r#move::*;
-use crate::chess::strings::*;
 use crate::chess::rankfile::*;
 use crate::chess::setup::Setup;
+use crate::chess::strings::*;
 
 use crate::bots::human::Human;
 
@@ -39,7 +39,12 @@ pub struct Board([[Piece; 8]; 8]);
 
 impl Board {
     pub fn new() -> Self {
-        Board{0:[[Piece{kind: PieceKind::None, color: Color::White, has_moved: false, highlight: 0}; 8]; 8]}
+        Board{0:[[Piece{
+            kind: PieceKind::None,
+            color: Color::White,
+            has_moved: false,
+            highlight: 0
+        }; 8]; 8]}
     }
 }
 
@@ -86,7 +91,6 @@ pub struct Game {
 }
 
 impl Game {
-
     // ================
     // Init, default, and reset code
     // ================
@@ -98,8 +102,14 @@ impl Game {
 
             // In Human-Bot matches, human is player one, bot is player two.
             // in Human-Human matches, player one is white, player two is black.
-            player_one: ActionablePlayer{ player: Box::new(Human::new()), color: Color::White},
-            player_two: ActionablePlayer{ player: Box::new(Human::new()), color: Color::Black},
+            player_one: ActionablePlayer{
+                player: Box::new(Human::new()),
+                color: Color::White
+            },
+            player_two: ActionablePlayer{
+                player: Box::new(Human::new()),
+                color: Color::Black
+            },
             turn_count: 1,
             history: Vec::new(),
             white_cap: Vec::new(),
@@ -126,8 +136,7 @@ impl Game {
         self.board.0[6][0] = Piece::make(PieceKind::Knight, c, false, 0);
         self.board.0[7][0] = Piece::make(PieceKind::Rook, c, false, 0);
 
-        for y in 0..8
-        {
+        for y in 0..8 {
             self.board.0[y][1] = Piece::make(PieceKind::Pawn, c, false, 0);
         }
 
@@ -141,8 +150,7 @@ impl Game {
         self.board.0[6][7] = Piece::make(PieceKind::Knight, c, false, 0);
         self.board.0[7][7] = Piece::make(PieceKind::Rook, c, false, 0);
 
-        for y in 0..8
-        {
+        for y in 0..8 {
             self.board.0[y][6] = Piece::make(PieceKind::Pawn, c, false, 0);
         }
     }
@@ -158,8 +166,7 @@ impl Game {
         self.turn_count = 1;
         self.print_mode = PrintMode::Game;
 
-        if self.game_mode == GameMode::AgainstBotLocal
-        {
+        if self.game_mode == GameMode::AgainstBotLocal {
             if !self.player_two.is_bot() {
                 panic!("Expected a bot but found non-bot!");
             }
@@ -265,12 +272,10 @@ impl Game {
         let mut clear = Command::new("clear");
         let _ = clear.status();
 
-        for _i in 0..prelines
-        {   
+        for _i in 0..prelines {   
             println!();
         }
-        match self.print_mode
-        {
+        match self.print_mode {
             PrintMode::Title => self.print_title(),
             PrintMode::Game => self.print_game(),
             PrintMode::Checkmate => self.print_checkmate(),
@@ -285,12 +290,10 @@ impl Game {
         let mut clear = Command::new("clear");
         let _ = clear.status();
 
-        for _i in 0..prelines
-        {   
+        for _i in 0..prelines {   
             println!();
         }
-        match self.print_mode
-        {
+        match self.print_mode {
             PrintMode::Setup => self.print_setup(config),
             _ => return,
         };
@@ -393,8 +396,7 @@ impl Game {
     fn print_rank(&self, r: usize) -> String {
         let mut rank = String::new();
         let mut f: i32 = if self.orientation == Color::White { 0 } else { 7 };
-        while f >= 0 && f <= 7
-        {
+        while f >= 0 && f <= 7 {
            rank.push_str(&self.board_square(f as usize, r));
            f = if self.orientation == Color::White { f + 1 } else { f - 1 };
         }
@@ -403,8 +405,7 @@ impl Game {
     }
 
     fn print_notation_history(&self, offset: usize) -> String {
-        if self.history.len() < 2*offset
-        {
+        if self.history.len() < 2*offset {
             return "".to_string();
         }
         let parity = if self.history.len() % 2 == 0 { 1 } else { 0 };
@@ -420,15 +421,12 @@ impl Game {
 
     fn cap_string(&self, c: Color) -> String {
         let mut s = String::new();
-        if c == Color::White
-        {
+        if c == Color::White {
             for i in 0..self.white_cap.len()
             {
                 s = format!("{}{}", s, self.white_cap[i].get_string());
             }
-        }
-        else
-        {
+        } else {
             for i in 0..self.black_cap.len()
             {
                 s = format!("{}{}", s, self.black_cap[i].get_string());
@@ -468,17 +466,14 @@ impl Game {
     }
 
     pub fn hl_king(&mut self) {
-        if let Some((file, rank)) = self.find_king(self.to_move)
-        {
+        if let Some((file, rank)) = self.find_king(self.to_move) {
             self.board.0[file.index().unwrap()][rank.index().unwrap()].highlight = 2;
         }
     }
 
     pub fn clear_hl(&mut self) {
-        for f in 0..8
-        {
-            for r in 0..8
-            {
+        for f in 0..8 {
+            for r in 0..8 {
                 self.board.0[f][r].highlight = 0;
             }
         }
@@ -496,12 +491,9 @@ impl Game {
     // ================
 
     fn find_king(&self, color: Color) -> Option<(File, Rank)> {
-        for f in 0..8
-        {
-            for r in 0..8
-            {
-                if self.board.0[f][r].kind == PieceKind::King && self.board.0[f][r].color == color
-                {
+        for f in 0..8 {
+            for r in 0..8 {
+                if self.board.0[f][r].kind == PieceKind::King && self.board.0[f][r].color == color {
                     return Some((File::from_index(f), Rank::from_index(r)));
                 }
             }
@@ -538,10 +530,8 @@ impl Game {
         let fdir: i32 = (m.dest.0.index().unwrap() as i32 - m.origin.0.index().unwrap() as i32).signum();
         let mut f: usize = (m.origin.0.index().unwrap() as i32 + fdir) as usize;
         let mut r: usize = (m.origin.1.index().unwrap() as i32 + rdir) as usize;
-        while f != m.dest.0.index().unwrap() || r != m.dest.1.index().unwrap()
-        {
-            if self.board.0[f][r].kind != PieceKind::None
-            {
+        while f != m.dest.0.index().unwrap() || r != m.dest.1.index().unwrap() {
+            if self.board.0[f][r].kind != PieceKind::None {
                 return false;
             }
             r = (r as i32 + rdir) as usize;
@@ -556,13 +546,11 @@ impl Game {
         let rdiff : i32 = m.dest.1.index().unwrap() as i32 - m.origin.1.index().unwrap() as i32;
         let fdiff: i32 = m.dest.0.index().unwrap() as i32 - m.origin.0.index().unwrap() as i32;
         
-        if (fdiff == 1 || fdiff == -1) && rdiff == direction
-        { // If capturing, only one to the side, and only one up, and a piece must be there
-            if self.board.0[m.dest.0.index().unwrap()][m.dest.1.index().unwrap()].kind != PieceKind::None
-            {
+        if (fdiff == 1 || fdiff == -1) && rdiff == direction {
+            // If capturing, only one to the side, and only one up, and a piece must be there
+            if self.board.0[m.dest.0.index().unwrap()][m.dest.1.index().unwrap()].kind != PieceKind::None {
                 return true;
-            }
-            else if self.board.0[m.dest.0.index().unwrap()][m.dest.1.index().unwrap()].kind == PieceKind::None
+            } else if self.board.0[m.dest.0.index().unwrap()][m.dest.1.index().unwrap()].kind == PieceKind::None
                     && self.history.len() > 0 && self.history[self.history.len() - 1].piece.kind == PieceKind::Pawn
                     && self.history[self.history.len() - 1].dest == (m.dest.0, Rank::from_index((m.dest.1.index().unwrap() as i32 - direction) as usize))
                     && self.history[self.history.len() - 1].pawn_double
@@ -578,14 +566,11 @@ impl Game {
         let direction: i32 = if m.piece.color == Color::White { 1 } else { -1 };
         let rdiff: i32 = m.dest.1.index().unwrap() as i32 - m.origin.1.index().unwrap() as i32;
         let fdiff: i32 = m.dest.0.index().unwrap() as i32 - m.origin.0.index().unwrap() as i32;
-        if fdiff == 0 && self.board.0[m.dest.0.index().unwrap()][m.dest.1.index().unwrap()].kind == PieceKind::None
-        { // If moving forward, cannot capture. Also cannot move backwards
-            if rdiff == direction
-            {
+        if fdiff == 0 && self.board.0[m.dest.0.index().unwrap()][m.dest.1.index().unwrap()].kind == PieceKind::None {
+            // If moving forward, cannot capture. Also cannot move backwards
+            if rdiff == direction {
                 return true;
-            }
-            else if rdiff == 2*direction && self.board.0[m.origin.0.index().unwrap()][m.origin.1.index().unwrap()].has_moved == false
-            {
+            } else if rdiff == 2*direction && self.board.0[m.origin.0.index().unwrap()][m.origin.1.index().unwrap()].has_moved == false {
                 m.pawn_double = true;
                 let file = m.origin.0.index().unwrap();
                 let rank = (m.origin.1.index().unwrap() as i32 + direction) as usize;
@@ -597,15 +582,12 @@ impl Game {
 
     fn is_valid_promotion(&self, m: &Move) -> bool {
         // if there is no promotion and the pawn did not get to the end rank, default to true.
-        if m.promotion == PieceKind::None && (m.piece.kind != PieceKind::Pawn || m.dest.1.index().unwrap() != promotion_rank_index(m.piece.color))
-        {
+        if m.promotion == PieceKind::None && (m.piece.kind != PieceKind::Pawn || m.dest.1.index().unwrap() != promotion_rank_index(m.piece.color)) {
             return true;
         }
         // if a promotion is specified, check that a pawn is getting to the end rank
-        if m.piece.kind == PieceKind::Pawn && m.dest.1.index().unwrap() == promotion_rank_index(m.piece.color)
-        {
-            return match m.promotion
-            {
+        if m.piece.kind == PieceKind::Pawn && m.dest.1.index().unwrap() == promotion_rank_index(m.piece.color) {
+            return match m.promotion {
                 PieceKind::Knight => true,
                 PieceKind::Bishop => true,
                 PieceKind::Rook => true,
@@ -623,8 +605,7 @@ impl Game {
     fn bishop_attacks(&self, m: &Move) -> bool {
         let rdiff: i32 = (m.dest.1.index().unwrap() as i32 - m.origin.1.index().unwrap() as i32).abs();
         let fdiff: i32 = (m.dest.0.index().unwrap() as i32 - m.origin.0.index().unwrap() as i32).abs();
-        if (rdiff == 0 && fdiff == 0) || rdiff != fdiff
-        {
+        if (rdiff == 0 && fdiff == 0) || rdiff != fdiff {
             return false;
         }
         return self.is_valid_move_range(m);
@@ -716,8 +697,7 @@ impl Game {
 
     fn is_valid_move(&self, m: &mut Move) -> Option<String> {
         // For castles we can't check dest. we only have long/castles and a piece (the king)
-        if m.castle || m.long_castle
-        {
+        if m.castle || m.long_castle {
             return self.is_valid_castle(m);
         }
 
@@ -727,8 +707,7 @@ impl Game {
         {
             return Some("There is a piece at the destination".to_string());
         }
-        else if m.dest == m.origin
-        {
+        else if m.dest == m.origin {
             return Some("Origin and Destination are the same".to_string());
         }
 
@@ -736,9 +715,7 @@ impl Game {
             && self.board.0[m.dest.0.index().unwrap()][m.dest.1.index().unwrap()].color != m.piece.color
         {
             m.takes = true;
-        }
-        else if m.takes
-        {
+        } else if m.takes {
             return Some("There is no piece to take".to_string());
         }
 
@@ -755,73 +732,54 @@ impl Game {
 
     // disambigutate the origin piece in the move. Modify the Move object to reflect it.
     pub fn disambiguate(&self, m: &mut Move) -> Option<String> {
-        if m.castle || m.long_castle
-        {
+        if m.castle || m.long_castle {
             return if let Some(s) = self.is_valid_castle(m) { Some(s) } else { None };
         }
 
         let mut ambi = Vec::new();
         let (file, rank) = m.origin;
-        if file.is_valid() && rank.is_valid()
-        {
+        if file.is_valid() && rank.is_valid() {
             // check square -> do nothing
             ambi.push((file, rank));
-        }
-        else if file.is_valid()
-        {
-            for r in 0..8
-            {
-                if self.board.0[file.index().unwrap()][r].matches(m.piece)
-                {
+        } else if file.is_valid() {
+            for r in 0..8 {
+                if self.board.0[file.index().unwrap()][r].matches(m.piece) {
                     ambi.push((file, Rank::from_index(r)));
                 }
             }
-        }
-        else if rank.is_valid()
-        {
-            for f in 0..8
-            {
-                if self.board.0[f][rank.index().unwrap()].matches(m.piece)
-                {
+        } else if rank.is_valid() {
+            for f in 0..8 {
+                if self.board.0[f][rank.index().unwrap()].matches(m.piece) {
                     ambi.push((File::from_index(f), rank));
                 }
             }
-        }
-        else
-        {
+        } else {
             // check board
-            for f in 0..8
-            {
-                for r in 0..8
-                {
-                    if self.board.0[f][r].matches(m.piece)
-                    {
+            for f in 0..8 {
+                for r in 0..8 {
+                    if self.board.0[f][r].matches(m.piece) {
                         ambi.push((File::from_index(f), Rank::from_index(r)));
                     }
                 }
             }
         }
-        if ambi.len() == 0
-        {
+        if ambi.len() == 0 {
             return Some("No pieces match".to_string());
         }
 
         // For each remaining piece, check if they have a valid move to the destination.
         // i.e. does the piece move like that to get there
         let mut ambi2 = Vec::new();
-        for i in 0..ambi.len()
-        {
+        for i in 0..ambi.len() {
             let mut cur = Move{ dest: m.dest, origin: ambi[i], piece: self.board.0[ambi[i].0.index().unwrap()][ambi[i].1.index().unwrap()],
                             takes: m.takes, check: m.check, checkmate: m.checkmate, castle: m.castle, long_castle: m.long_castle, pawn_double: m.pawn_double,
                             en_passant: m.en_passant, promotion: m.promotion, meta: MetaMove::None };
-            if self.is_valid_move(&mut cur) == None
-            {
+            if self.is_valid_move(&mut cur) == None {
                 ambi2.push(cur);
             }
         }
         
-        if ambi2.len() == 1
-        {
+        if ambi2.len() == 1 {
             *m = ambi2[0];
             return None;
         }
@@ -830,11 +788,9 @@ impl Game {
     }
 
     fn is_check_color(&self, color: Color) -> bool {
-        if let Some((file, rank)) = self.find_king(color)
-        {
+        if let Some((file, rank)) = self.find_king(color) {
             return self.is_attacked((file, rank), color);
         }
-        
         // This should not happen... Famous last words
         return false;
     }
@@ -863,8 +819,7 @@ impl Game {
                     // enumerate moves by piece
                     let piece_moves = self.all_piece_moves(File::from_index(f), Rank::from_index(r));
                     // check if the moves are valid
-                    for mut m in piece_moves
-                    {
+                    for mut m in piece_moves {
                         if self.is_valid_move(&mut m) == None {
                             let mut temp = self.clone();
                             temp.do_move(m);
@@ -887,8 +842,7 @@ impl Game {
                     // enumerate moves by piece
                     let piece_moves = self.all_piece_moves(File::from_index(f), Rank::from_index(r));
                     // check if the moves are valid
-                    for mut m in piece_moves
-                    {
+                    for mut m in piece_moves {
                         if self.is_valid_move(&mut m) == None {
                             let mut temp = self.clone();
                             temp.do_move(m);
@@ -921,8 +875,7 @@ impl Game {
     // Takes a valid move, and performs it
     pub fn do_move(&mut self, mut m: Move) -> Self {
         let previous_state = self.clone();
-        if m.castle || m.long_castle
-        {
+        if m.castle || m.long_castle {
             let king_file_dest: usize = if m.castle { 6 } else { 2 };
             let rook_file_dest: usize = if m.castle { 5 } else { 3 };
             let rook_file_origin: usize = if m.castle { 7 } else { 0 };
@@ -934,17 +887,11 @@ impl Game {
             self.board.0[rook_file_dest][back_rank_index(self.to_move)] = self.board.0[rook_file_origin][back_rank_index(self.to_move)];
             self.board.0[rook_file_dest][back_rank_index(self.to_move)].has_moved = true;
             self.board.0[rook_file_origin][back_rank_index(self.to_move)] = Piece{kind: PieceKind::None, color: Color::White, has_moved: false, highlight: 1};
-        }
-        else
-        {
-            if m.takes
-            {
-                if self.to_move == Color::White
-                {
+        } else {
+            if m.takes {
+                if self.to_move == Color::White {
                     self.white_cap.push(self.board.0[m.dest.0.index().unwrap()][m.dest.1.index().unwrap()]);
-                }
-                else
-                {
+                } else {
                     self.black_cap.push(self.board.0[m.dest.0.index().unwrap()][m.dest.1.index().unwrap()]);
                 }
             }
@@ -952,18 +899,15 @@ impl Game {
             self.board.0[m.dest.0.index().unwrap()][m.dest.1.index().unwrap()].has_moved = true;
             self.board.0[m.dest.0.index().unwrap()][m.dest.1.index().unwrap()].highlight = 1;
             self.board.0[m.origin.0.index().unwrap()][m.origin.1.index().unwrap()] = Piece{kind: PieceKind::None, color: Color::White, has_moved: false, highlight: 1};
-            if let Some((file, rank)) = m.en_passant
-            {
+            if let Some((file, rank)) = m.en_passant {
                 self.board.0[file.index().unwrap()][rank.index().unwrap()] = Piece{ kind: PieceKind::None, color: Color::White, has_moved: false, highlight: 0 };
             }
-            if m.promotion != PieceKind::None
-            {
+            if m.promotion != PieceKind::None {
                 self.board.0[m.dest.0.index().unwrap()][m.dest.1.index().unwrap()].kind = m.promotion;
             }
         }
 
-        if self.is_check_color(if self.to_move == Color::White { Color::Black } else { Color::White })
-        {
+        if self.is_check_color(if self.to_move == Color::White { Color::Black } else { Color::White }) {
             m.check = true;
         }
         self.history.push(m);
@@ -980,8 +924,7 @@ impl Game {
 
     pub fn set_checkmate(&mut self) {
         self.print_mode = PrintMode::Checkmate;
-        if self.history.len() > 0
-        {
+        if self.history.len() > 0 {
             let index = self.history.len() - 1;
             self.history[index].checkmate = true;
             self.history[index].check = false;

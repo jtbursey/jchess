@@ -39,8 +39,7 @@ impl Setup {
 
     pub fn select(&mut self, sel: usize, game: &mut Game) -> bool {
         self.confirm = String::new();
-        if self.stack.len() <= 0 || sel > self.stack.last().unwrap().entries.len()
-        {
+        if self.stack.len() <= 0 || sel > self.stack.last().unwrap().entries.len() {
             return false;
         }
         match self.stack.last().unwrap().entries[sel] {
@@ -115,7 +114,7 @@ impl Setup {
 
     fn set_start_color(&mut self, game: &mut Game, color: StartColor) {
         game.set_start_color(color);
-        self.confirm = String::from(format!("Set Player Color: {}", match color{
+        self.confirm = String::from(format!("Set Player Color: {}", match color {
             StartColor::White => "White",
             StartColor::Black => "Black",
             StartColor::Random => "Random",
@@ -140,8 +139,7 @@ impl SetupMenu {
     }
 
     pub fn print_entry(&self, idx: usize) -> String {
-        if idx >= self.entries.len()
-        {
+        if idx >= self.entries.len() {
             return String::from("");
         }
         return (idx + 1).to_string() + ". " + self.entries[idx].string().as_str();

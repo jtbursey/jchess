@@ -1,6 +1,6 @@
+mod bots;
 mod chess;
 mod input;
-mod bots;
 
 use chess::game::Game;
 use chess::r#move::{MetaMove, Move};
@@ -18,17 +18,12 @@ fn main() {
         game.fancy_print();
         let input = read_line();
 
-        if input == "1"
-        {
+        if input == "1" {
             game_loop(&mut game);
             let _ = read_line();
-        }
-        else if input == "2"
-        {
+        } else if input == "2" {
             setup_loop(&mut game);
-        }
-        else if input == "3"
-        {
+        } else if input == "3" {
             break;
         }
     }
@@ -42,14 +37,10 @@ fn game_loop(game: &mut Game) {
     let mut quit : bool = false;
     while !quit
     {
-        if !game.any_valid_moves()
-        {
-            if game.is_check()
-            {
+        if !game.any_valid_moves() {
+            if game.is_check() {
                 game.set_checkmate();
-            }
-            else
-            {
+            } else {
                 game.set_stalemate();
             }
             quit = true;
@@ -63,22 +54,18 @@ fn game_loop(game: &mut Game) {
             Ok(mo) => mo,
             Err(s) => {game.set_error(s); continue},
         };
-        if m.meta == MetaMove::Quit || m.meta == MetaMove::Concede
-        {
+        if m.meta == MetaMove::Quit || m.meta == MetaMove::Concede {
             game.set_concede();
             quit = true;
             game.clear_hl();
             game.fancy_print();
             continue;
-        }
-        else if m.meta == MetaMove::Flip
-        {
+        } else if m.meta == MetaMove::Flip {
             game.flip_board();
             continue;
         }
 
-        if let Some(s) = game.disambiguate(&mut m)
-        {
+        if let Some(s) = game.disambiguate(&mut m) {
             game.set_error(s);
             continue;
         }
@@ -87,13 +74,10 @@ fn game_loop(game: &mut Game) {
         game.clear_hl();
         let mut tmp = game.clone();
         let _ = tmp.do_move(m);
-        if tmp.is_check()
-        {
+        if tmp.is_check() {
             game.hl_king();
             continue;
-        }
-        else
-        {
+        } else {
             let mut prev = game.do_move(m);
             prev.clear_hl();
             history.push(prev);
@@ -108,8 +92,7 @@ fn setup_loop(game: &mut Game) {
     let mut config = Setup::new();
 
     game.start_setup();
-    while !quit
-    {
+    while !quit {
         game.fancy_print_setup(&config);
         let input = read_line();
         let idx = match input.parse::<usize>() {
