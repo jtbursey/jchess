@@ -1,5 +1,6 @@
 use std::process::Command;
 use std::io::{Write, stdout};
+use rand::Rng;
 
 use crate::chess::color::Color;
 use crate::chess::piece::*;
@@ -7,32 +8,80 @@ use crate::chess::player::*;
 use crate::chess::r#move::*;
 use crate::chess::strings::*;
 use crate::chess::rankfile::*;
+use crate::chess::setup::Setup;
 
 use crate::bots::human::Human;
 
-#[derive(Copy, Clone)]
-pub struct Board([[Piece; 8]; 8]);
+#[derive(Copy, Clone, PartialEq)]
+enum GameMode {
+    AgainstHumanLocal,
+    AgainstBotLocal,
+}
+
+#[derive(Copy, Clone, PartialEq)]
+pub enum StartColor {
+    White,
+    Black,
+    Random,
+}
 
 #[derive(Copy, Clone)]
 enum PrintMode {
     Title,
+    Setup,
     Game,
     Checkmate, // also concedes
     Stalemate, // also draw
+}
+
+#[derive(Copy, Clone)]
+pub struct Board([[Piece; 8]; 8]);
+
+impl Board {
+    pub fn new() -> Self {
+        Board{0:[[Piece{kind: PieceKind::None, color: Color::White, has_moved: false, highlight: 0}; 8]; 8]}
+    }
+}
+
+#[derive(Clone)]
+struct ActionablePlayer {
+    player: Box<dyn Player>,
+    color: Color,
+}
+
+impl ActionablePlayer {
+    fn is_human(&self) -> bool {
+        return self.player.is_human()
+    }
+
+    fn is_bot(&self) -> bool {
+        return self.player.is_bot()
+    }
+
+    fn color(&self) -> Color {
+        return self.color;
+    }
+
+    fn reset(&mut self) {
+        self.player.reset();
+    }
 }
 
 #[derive(Clone)]
 pub struct Game {
     board: Board, // board coords are in the order (file, rank)
     to_move: Color,
-    player_white: Box<dyn Player>,
-    player_black: Box<dyn Player>,
+    player_one: ActionablePlayer,
+    player_two: ActionablePlayer,
     turn_count: u32,
     history: Vec<Move>,
     white_cap: Vec<Piece>,
     black_cap: Vec<Piece>,
     error: String,
     orientation: Color,
+    do_flip: bool,
+    game_mode: GameMode,
+    start_color: StartColor,
     print_mode: PrintMode,
 }
 
@@ -43,7 +92,25 @@ impl Game {
     // ================
 
     pub fn new() -> Self {
-        Self { board: Board{0:[[Piece{kind: PieceKind::None, color: Color::White, has_moved: false, highlight: 0}; 8]; 8]}, to_move: Color::White, player_white: Box::new(Human::new()), player_black: Box::new(Human::new()), turn_count: 1, history: Vec::new(), white_cap: Vec::new(), black_cap: Vec::new(), error: String::new(), orientation: Color::White, print_mode: PrintMode::Title }
+        Self {
+            board: Board::new(),
+            to_move: Color::White,
+
+            // In Human-Bot matches, human is player one, bot is player two.
+            // in Human-Human matches, player one is white, player two is black.
+            player_one: ActionablePlayer{ player: Box::new(Human::new()), color: Color::White},
+            player_two: ActionablePlayer{ player: Box::new(Human::new()), color: Color::Black},
+            turn_count: 1,
+            history: Vec::new(),
+            white_cap: Vec::new(),
+            black_cap: Vec::new(),
+            error: String::new(),
+            orientation: Color::White,
+            do_flip: false,
+            game_mode: GameMode::AgainstHumanLocal,
+            start_color: StartColor::White,
+            print_mode: PrintMode::Title,
+        }
     }
 
     pub fn default_board(&mut self) {
@@ -80,12 +147,69 @@ impl Game {
         }
     }
 
+    pub fn title(&mut self) {
+        self.print_mode = PrintMode::Title;
+    }
+
     pub fn start_game(&mut self) {
+        self.clear();
         self.default_board();
         self.to_move = Color::White;
         self.turn_count = 1;
         self.print_mode = PrintMode::Game;
 
+        if self.game_mode == GameMode::AgainstBotLocal
+        {
+            if !self.player_two.is_bot() {
+                panic!("Expected a bot but found non-bot!");
+            }
+
+            let mut actual_start_color = self.start_color;
+            // randomize color if needed
+            if actual_start_color == StartColor::Random {
+                let mut rng = rand::rng();
+                if rng.random_range(0.0..1.0) < 0.5 {
+                    actual_start_color = StartColor::White;
+                } else {
+                    actual_start_color = StartColor::Black;
+                }
+            }
+
+            // Make the players match the start color
+            self.player_one.color = if actual_start_color == StartColor::White { Color::White } else { Color::Black };
+            self.player_two.color = if actual_start_color == StartColor::White { Color::Black } else { Color::White };
+            // orient based on color
+            self.orientation = self.player_one.color();
+            // Flipping while playing against a bot is silly.
+            self.do_flip = false;
+        }
+    }
+
+    pub fn start_setup(&mut self) {
+        self.print_mode = PrintMode::Setup;
+    }
+
+    pub fn clear(&mut self) {
+        self.history.clear();
+        self.white_cap.clear();
+        self.black_cap.clear();
+        self.board = Board::new();
+        self.to_move = Color::White;
+        self.turn_count = 1;
+        self.orientation = Color::White;
+        self.player_one.reset();
+        self.player_one.color = Color::White;
+        self.player_two.reset();
+        self.player_two.color = Color::Black;
+    }
+
+    pub fn toggle_flip(&mut self) -> bool {
+        self.do_flip = !self.do_flip;
+        return self.do_flip;
+    }
+
+    pub fn set_start_color(&mut self, color: StartColor) {
+        self.start_color = color;
     }
 
     // ================
@@ -93,28 +217,42 @@ impl Game {
     // ================
 
     pub fn current_player(&self) -> &Box<dyn Player> {
-        return match self.to_move {
-            Color::White => &self.player_white,
-            Color::Black => &self.player_black,
-        };
+        return self.player(self.to_move);
     }
 
     pub fn player(&self, color: Color) -> &Box<dyn Player> {
-        return match color {
-            Color::White => &self.player_white,
-            Color::Black => &self.player_black,
-        };
+        return if color == self.player_one.color() { &self.player_one.player } else { &self.player_two.player };
     }
 
     pub fn current_color(&self) -> Color {
         return self.to_move;
     }
 
-    pub fn set_player(&mut self, player: Box<dyn Player>, color: Color) {
-        match color {
-            Color::White => self.player_white = player,
-            Color::Black => self.player_black = player,
-        };
+    fn update_game_mode(&mut self) {
+        if self.player_two.player.is_bot() && self.player_one.player.is_human() {
+            self.game_mode = GameMode::AgainstBotLocal;
+        }
+        else if self.player_two.player.is_human() && self.player_one.player.is_human() {
+            self.game_mode = GameMode::AgainstHumanLocal;
+        }
+    }
+
+    pub fn set_player_one(&mut self, player: Box<dyn Player>) {
+        self.player_one.player = player;
+        self.update_game_mode();
+    }
+
+    pub fn set_player_two(&mut self, player: Box<dyn Player>) {
+        self.player_two.player = player;
+        self.update_game_mode();
+    }
+
+    pub fn set_player_one_color(&mut self, color: Color) {
+        self.player_one.color = color;
+    }
+
+    pub fn set_player_two_color(&mut self, color: Color) {
+        self.player_two.color = color;
     }
 
     // ================
@@ -137,6 +275,24 @@ impl Game {
             PrintMode::Game => self.print_game(),
             PrintMode::Checkmate => self.print_checkmate(),
             PrintMode::Stalemate => self.print_stalemate(),
+            _ => return,
+        };
+    }
+
+    pub fn fancy_print_setup(&self, config: &Setup) {
+        let prelines = 2;
+
+        let mut clear = Command::new("clear");
+        let _ = clear.status();
+
+        for _i in 0..prelines
+        {   
+            println!();
+        }
+        match self.print_mode
+        {
+            PrintMode::Setup => self.print_setup(config),
+            _ => return,
         };
     }
 
@@ -154,13 +310,36 @@ impl Game {
         r = if self.orientation == Color::White { 2 } else { 5 };
         println!("{: >5} {}{: >2}", r + 1, self.print_rank(r), "",);
         r = if self.orientation == Color::White { 1 } else { 6 };
-        println!("{: >5} {}{: >13}Press Enter", r + 1, self.print_rank(r), "");
+        println!("{: >5} {}{: >7}1. Play ({})", r + 1, self.print_rank(r), "", self.game_mode_string());
         r = if self.orientation == Color::White { 0 } else { 7 };
-        println!("{: >5} {}{: >2}", r + 1, self.print_rank(r), "");
-        println!("{: >5} {}", "", self.print_rank_label());
+        println!("{: >5} {}{: >7}2. Setup", r + 1, self.print_rank(r), "");
+        println!("{: >5} {}{: >7}3. Exit", "", self.print_rank_label(), "");
         println!("");
-        println!("");
-        println!("");
+        print!("{: >29}> ", "");
+        let _ = stdout().flush().unwrap();
+    }
+
+    fn print_setup(&self, config: &Setup) {
+        let mut r = if self.orientation == Color::White { 7 } else { 0 };
+        println!("{: >5} {}{: >7}{}", r + 1, self.print_rank(r), "", config.current().this().string() + ":");
+        r = if self.orientation == Color::White { 6 } else { 1 };
+        println!("{: >5} {}", r + 1, self.print_rank(r));
+        r = if self.orientation == Color::White { 5 } else { 2 };
+        println!("{: >5} {}{: >7}{}", r + 1, self.print_rank(r), "", config.current().print_entry(0));
+        r = if self.orientation == Color::White { 4 } else { 3 };
+        println!("{: >5} {}{: >7}{}", r + 1, self.print_rank(r), "", config.current().print_entry(1));
+        r = if self.orientation == Color::White { 3 } else { 4 };
+        println!("{: >5} {}{: >7}{}", r + 1, self.print_rank(r), "", config.current().print_entry(2));
+        r = if self.orientation == Color::White { 2 } else { 5 };
+        println!("{: >5} {}{: >7}{}", r + 1, self.print_rank(r), "", config.current().print_entry(3));
+        r = if self.orientation == Color::White { 1 } else { 6 };
+        println!("{: >5} {}{: >7}{}", r + 1, self.print_rank(r), "", config.current().print_entry(4));
+        r = if self.orientation == Color::White { 0 } else { 7 };
+        println!("{: >5} {}{: >7}{}", r + 1, self.print_rank(r), "", config.current().print_entry(5));
+        println!("{: >5} {}{: >7}{}", "", self.print_rank_label(), "", "");
+        println!("{: >29}{}", "", config.confirm_string());
+        print!("{: >29}> ", "");
+        let _ = stdout().flush().unwrap();
     }
 
     fn print_game(&self) {
@@ -305,6 +484,13 @@ impl Game {
         }
     }
 
+    fn game_mode_string(&self) -> String {
+        match self.game_mode {
+            GameMode::AgainstHumanLocal => String::from("2 Player Local"),
+            GameMode::AgainstBotLocal => String::from("Against Bot"),
+        }
+    }
+
     // ================
     // Move Validation
     // ================
@@ -326,12 +512,9 @@ impl Game {
     // Returns true if any enemy (of the given color) piece is able to attack the given coord
     fn is_attacked(&self, coord: (File, Rank), color: Color) -> bool {
         // for each square, if it is an enemy piece, check if that piece can attack the given square.
-        for f in 0..8
-        {
-            for r in 0..8
-            {
-                if self.board.0[f][r].kind != PieceKind::None && self.board.0[f][r].color != color
-                {
+        for f in 0..8 {
+            for r in 0..8 {
+                if self.board.0[f][r].kind != PieceKind::None && self.board.0[f][r].color != color {
                     let mut m = Move::basic(self.board.0[f][r], (File::from_index(f), Rank::from_index(r)), coord);
                     if match self.board.0[f][r].kind {
                         PieceKind::Pawn => self.pawn_attacks(&mut m),
@@ -457,7 +640,7 @@ impl Game {
         return (rdiff == 2 && fdiff == 1) || (rdiff == 1 && fdiff == 2);
     }
 
-    fn is_valid_knight_move(&self, m: &mut Move) -> bool {
+    fn is_valid_knight_move(&self, m: &Move) -> bool {
         return self.knight_attacks(m);
     }
 
@@ -660,23 +843,33 @@ impl Game {
         return self.is_check_color(self.to_move);
     }
 
+    pub fn all_piece_moves(&self, file: File, rank: Rank) -> Vec<Move> {
+        let piece: Piece = self.board.0[file.index().unwrap()][rank.index().unwrap()];
+        return match piece.kind {
+            PieceKind::Pawn => gen_pawn_moves(piece, file, rank),
+            PieceKind::Bishop => gen_bishop_moves(piece, file, rank),
+            PieceKind::Knight => gen_knight_moves(piece, file, rank),
+            PieceKind::Rook => gen_rook_moves(piece, file, rank),
+            PieceKind::Queen => gen_queen_moves(piece, file, rank),
+            PieceKind::King => gen_king_moves(piece, file, rank),
+            PieceKind::None => Vec::<Move>::new(),
+        };
+    }
+
     pub fn any_valid_moves(&self) -> bool {
         for f in 0..8 {
             for r in 0..8 {
                 if self.board.0[f][r].kind != PieceKind::None && self.board.0[f][r].color == self.to_move {
-                    for f2 in 0..8 {        // This is a lazy check of all squares.
-                        for r2 in 0..8 {    // I'm pretty sure my validation logic is efficient enough
-                            let mut m: Move = Move{ dest: (File::from_index(f2), Rank::from_index(r2)), origin: (File::from_index(f), Rank::from_index(r)),
-                                            piece: self.board.0[f][r], takes: false, check: false, checkmate: false, castle: false, long_castle: false,
-                                            pawn_double: false, en_passant: None,
-                                            promotion: if self.board.0[f][r].kind == PieceKind::Pawn { PieceKind::Queen } else { PieceKind::None },
-                                            meta: MetaMove::None };
-                            if self.is_valid_move(&mut m) == None {
-                                let mut temp = self.clone();
-                                temp.do_move(m);
-                                if !temp.is_check() {
-                                    return true;
-                                }
+                    // enumerate moves by piece
+                    let piece_moves = self.all_piece_moves(File::from_index(f), Rank::from_index(r));
+                    // check if the moves are valid
+                    for mut m in piece_moves
+                    {
+                        if self.is_valid_move(&mut m) == None {
+                            let mut temp = self.clone();
+                            temp.do_move(m);
+                            if !temp.is_check() {
+                                return true;
                             }
                         }
                     }
@@ -691,22 +884,30 @@ impl Game {
         for f in 0..8 {
             for r in 0..8 {
                 if self.board.0[f][r].kind != PieceKind::None && self.board.0[f][r].color == self.to_move {
-                    for f2 in 0..8 {        // This is a lazy check of all squares.
-                        for r2 in 0..8 {    // I'm pretty sure my validation logic is efficient enough
-                            let mut m: Move = Move{ dest: (File::from_index(f2), Rank::from_index(r2)), origin: (File::from_index(f), Rank::from_index(r)),
-                                            piece: self.board.0[f][r], takes: false, check: false, checkmate: false, castle: false, long_castle: false,
-                                            pawn_double: false, en_passant: None,
-                                            promotion: if self.board.0[f][r].kind == PieceKind::Pawn { PieceKind::Queen } else { PieceKind::None },
-                                            meta: MetaMove::None };
-                            if self.is_valid_move(&mut m) == None {
-                                let mut temp = self.clone();
-                                temp.do_move(m);
-                                if !temp.is_check() {
-                                    moves.push(m);
-                                }
+                    // enumerate moves by piece
+                    let piece_moves = self.all_piece_moves(File::from_index(f), Rank::from_index(r));
+                    // check if the moves are valid
+                    for mut m in piece_moves
+                    {
+                        if self.is_valid_move(&mut m) == None {
+                            let mut temp = self.clone();
+                            temp.do_move(m);
+                            if !temp.is_check() {
+                                moves.push(m);
                             }
                         }
                     }
+                }
+            }
+        }
+
+        // Check castles
+        for mut m in gen_castles() {
+            if self.is_valid_move(&mut m) == None {
+                let mut temp = self.clone();
+                temp.do_move(m);
+                if !temp.is_check() {
+                    moves.push(m);
                 }
             }
         }
@@ -772,6 +973,9 @@ impl Game {
     pub fn next_turn(&mut self) {
         self.to_move = if self.to_move == Color::White { Color::Black } else { Color::White };
         self.turn_count += if self.to_move == Color::White { 1 } else { 0 };
+        if self.do_flip {
+            self.orientation = self.to_move;
+        }
     }
 
     pub fn set_checkmate(&mut self) {

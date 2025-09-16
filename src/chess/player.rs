@@ -2,6 +2,8 @@ use crate::chess::game::Game;
 use crate::chess::r#move::Move;
 
 pub trait Player: PlayerClone {
+    fn reset(&mut self);
+
     fn get_move(&self, _game: &Game) -> Result<Move, String>;
 
     fn is_human(&self) -> bool {
@@ -10,6 +12,10 @@ pub trait Player: PlayerClone {
 
     fn is_bot(&self) -> bool {
         return false;
+    }
+
+    fn id_string(&self) -> String {
+        return String::from("Player");
     }
 }
 

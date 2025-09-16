@@ -279,3 +279,200 @@ pub fn parse_notation(mut input: String, to_move: Color) -> Result<Move, String>
 
     return Ok(m);
 }
+
+// =================
+// Move Generation
+// =================
+
+pub fn gen_pawn_moves(piece: Piece, file: File, rank: Rank) -> Vec<Move> {
+    let mut moves = Vec::<Move>::new();
+    let f = file.index().unwrap();
+    let r = rank.index().unwrap();
+    let direction : i32 = if piece.color == Color::White { 1 } else { -1 };
+
+    if r == 0 && direction == -1 {
+        return moves;
+    }
+
+    // Double Pawn move
+    if r > 1 || direction == 1 {
+        moves.push(Move{
+            dest: (File::from_index(f), Rank::from_index((r as i32 + (direction*2)) as usize)), origin: (file, rank),
+            piece: piece, takes: false, check: false, checkmate: false, castle: false, long_castle: false,
+            pawn_double: true, en_passant: None, promotion: PieceKind::None, meta: MetaMove::None
+        });
+    }
+
+    // Regular Pawn Move
+    moves.push(Move{
+        dest: (File::from_index(f), Rank::from_index((r as i32 + (direction)) as usize)), origin: (file, rank),
+        piece: piece, takes: false, check: false, checkmate: false, castle: false, long_castle: false,
+        pawn_double: false, en_passant: None,
+        promotion: if promotion_rank_index(piece.color) == (r as i32 + (direction)) as usize { PieceKind::Queen } else { PieceKind::None },
+        meta: MetaMove::None
+    });
+
+    // Pawn Attacks
+    if f < 7 {
+        moves.push(Move{
+            dest: (File::from_index((f + 1) as usize), Rank::from_index((r as i32 + (direction)) as usize)), origin: (file, rank),
+            piece: piece, takes: false, check: false, checkmate: false, castle: false, long_castle: false,
+            pawn_double: false, en_passant: None,
+            promotion: if promotion_rank_index(piece.color) == (r as i32 + (direction)) as usize { PieceKind::Queen } else { PieceKind::None },
+            meta: MetaMove::None
+        });
+    }
+
+    if f > 0 {
+        moves.push(Move{
+            dest: (File::from_index((f - 1) as usize), Rank::from_index((r as i32 + (direction)) as usize)), origin: (file, rank),
+            piece: piece, takes: false, check: false, checkmate: false, castle: false, long_castle: false,
+            pawn_double: false, en_passant: None,
+            promotion: if promotion_rank_index(piece.color) == (r as i32 + (direction)) as usize { PieceKind::Queen } else { PieceKind::None },
+            meta: MetaMove::None
+        });
+    }
+
+    return moves;
+}
+
+pub fn gen_bishop_moves(piece: Piece, file: File, rank: Rank) -> Vec<Move> {
+    let mut moves = Vec::<Move>::new();
+    let f = file.index().unwrap();
+    let r = rank.index().unwrap();
+
+    for dir1 in [-1, 1] {
+        for dir2 in [-1, 1] {
+            let mut tf = (f as i32) + dir1;
+            let mut tr = (r as i32) + dir2;
+
+            while tf <= 7 && tf >= 0 && tr <= 7 && tr >= 0 {
+                moves.push(Move{
+                    dest: (File::from_index(tf as usize), Rank::from_index(tr as usize)), origin: (file, rank),
+                    piece: piece, takes: false, check: false, checkmate: false, castle: false, long_castle: false,
+                    pawn_double: true, en_passant: None, promotion: PieceKind::None, meta: MetaMove::None
+                });
+                tf = tf + dir1;
+                tr = tr + dir2;
+            }
+        }
+    }
+    return moves;
+}
+
+pub fn gen_knight_moves(piece: Piece, file: File, rank: Rank) -> Vec<Move> {
+    let mut moves = Vec::<Move>::new();
+    let f = file.index().unwrap();
+    let r = rank.index().unwrap();
+
+    for dir1 in [-1, 1] {
+        for dir2 in [-2, 2] {
+            let tf = (f as i32) + dir1;
+            let tr = (r as i32) + dir2;
+
+            if tf <= 7 && tf >= 0 && tr <= 7 && tr >= 0 {
+                moves.push(Move{
+                    dest: (File::from_index(tf as usize), Rank::from_index(tr as usize)), origin: (file, rank),
+                    piece: piece, takes: false, check: false, checkmate: false, castle: false, long_castle: false,
+                    pawn_double: true, en_passant: None, promotion: PieceKind::None, meta: MetaMove::None
+                });
+            }
+        }
+    }
+    for dir1 in [-2, 2] {
+        for dir2 in [-1, 1] {
+            let tf = (f as i32) + dir1;
+            let tr = (r as i32) + dir2;
+
+            if tf <= 7 && tf >= 0 && tr <= 7 && tr >= 0 {
+                moves.push(Move{
+                    dest: (File::from_index(tf as usize), Rank::from_index(tr as usize)), origin: (file, rank),
+                    piece: piece, takes: false, check: false, checkmate: false, castle: false, long_castle: false,
+                    pawn_double: true, en_passant: None, promotion: PieceKind::None, meta: MetaMove::None
+                });
+            }
+        }
+    }
+    return moves;
+}
+
+pub fn gen_rook_moves(piece: Piece, file: File, rank: Rank) -> Vec<Move> {
+    let mut moves = Vec::<Move>::new();
+    let f = file.index().unwrap();
+    let r = rank.index().unwrap();
+
+    for dir in [-1, 1] {
+        let mut tr = (r as i32) + dir;
+
+        while tr <= 7 && tr >= 0 {
+            moves.push(Move{
+                dest: (file, Rank::from_index(tr as usize)), origin: (file, rank),
+                piece: piece, takes: false, check: false, checkmate: false, castle: false, long_castle: false,
+                pawn_double: true, en_passant: None, promotion: PieceKind::None, meta: MetaMove::None
+            });
+            tr = tr + dir;
+        }
+    }
+    for dir in [-1, 1] {
+        let mut tf = (f as i32) + dir;
+
+        while tf <= 7 && tf >= 0 {
+            moves.push(Move{
+                dest: (File::from_index(tf as usize), rank), origin: (file, rank),
+                piece: piece, takes: false, check: false, checkmate: false, castle: false, long_castle: false,
+                pawn_double: true, en_passant: None, promotion: PieceKind::None, meta: MetaMove::None
+            });
+            tf = tf + dir;
+        }
+    }
+    return moves;
+}
+
+pub fn gen_queen_moves(piece: Piece, file: File, rank: Rank) -> Vec<Move> {
+    let mut moves = gen_rook_moves(piece, file, rank);
+    moves.append(&mut gen_bishop_moves(piece, file, rank));
+    return moves;
+}
+
+pub fn gen_king_moves(piece: Piece, file: File, rank: Rank) -> Vec<Move> {
+    let mut moves = Vec::<Move>::new();
+    let f = file.index().unwrap();
+    let r = rank.index().unwrap();
+
+    for dir1 in [-1, 0, 1] {
+        for dir2 in [-1, 0, 1] {
+            if dir1 == 0 && dir2 == 0 {
+                continue;
+            }
+            let tf = (f as i32) + dir1;
+            let tr = (r as i32) + dir2;
+
+            if tf <= 7 && tf >= 0 && tr <= 7 && tr >= 0 {
+                moves.push(Move{
+                    dest: (File::from_index(tf as usize), Rank::from_index(tr as usize)), origin: (file, rank),
+                    piece: piece, takes: false, check: false, checkmate: false, castle: false, long_castle: false,
+                    pawn_double: true, en_passant: None, promotion: PieceKind::None, meta: MetaMove::None
+                });
+            }
+        }
+    }
+    return moves;
+}
+
+pub fn gen_castles() -> Vec<Move> {
+    let mut moves = Vec::<Move>::new();
+    let piece: Piece = Piece{kind: PieceKind::King, color: Color::White, has_moved: false, highlight: 0};
+
+    moves.push(Move{
+        dest: ((File::from_index(0), Rank::from_index(0))), origin: ((File::from_index(0), Rank::from_index(0))),
+        piece: piece, takes: false, check: false, checkmate: false, castle: false, long_castle: false,
+        pawn_double: true, en_passant: None, promotion: PieceKind::None, meta: MetaMove::None
+    });
+    moves.push(Move{
+        dest: (File::from_index(0), Rank::from_index(0)), origin: ((File::from_index(0), Rank::from_index(0))),
+        piece: piece, takes: false, check: false, checkmate: false, castle: false, long_castle: true,
+        pawn_double: true, en_passant: None, promotion: PieceKind::None, meta: MetaMove::None
+    });
+
+    return moves;
+}

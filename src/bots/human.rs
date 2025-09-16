@@ -15,6 +15,8 @@ impl Human {
 }
 
 impl Player for Human {
+    fn reset(&mut self)  {}
+
     fn get_move(&self, game: &Game) -> Result<Move, String> {
         let input = read_line();
 
@@ -26,5 +28,9 @@ impl Player for Human {
 
     fn is_human(&self) -> bool {
         return true;
+    }
+
+    fn id_string(&self) -> String {
+        return String::from("Human");
     }
 }

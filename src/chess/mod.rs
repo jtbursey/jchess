@@ -6,3 +6,4 @@ pub mod piece;
 pub mod player;
 pub mod rankfile;
 pub mod strings;
+pub mod setup;
